@@ -1,9 +1,5 @@
 {
   "version": 3,
-  "build": {
-    "command": "npm run build",
-    "outputDirectory": "build/web"
-  },
   "routes": [
     {
       "src": "/(.*)",
