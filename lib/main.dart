@@ -158,21 +158,36 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
 
     return Scaffold(
       backgroundColor: const Color(0xFF121E38),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-          child: Column(
-            children: [
-              _buildHeader(context, isLowEnergy),
-              const SizedBox(height: 18),
-              _buildTopStatusRow(isLowEnergy),
-              const SizedBox(height: 18),
-              Expanded(child: _buildMainBoard(context, isLowEnergy)),
-              const SizedBox(height: 16),
-              _buildBottomControls(),
-            ],
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              'assets/background.jpeg',
+              fit: BoxFit.cover,
+            ),
           ),
-        ),
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withOpacity(0.40),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              child: Column(
+                children: [
+                  _buildHeader(context, isLowEnergy),
+                  const SizedBox(height: 18),
+                  _buildTopStatusRow(isLowEnergy),
+                  const SizedBox(height: 18),
+                  Expanded(child: _buildMainBoard(context, isLowEnergy)),
+                  const SizedBox(height: 16),
+                  _buildBottomControls(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
