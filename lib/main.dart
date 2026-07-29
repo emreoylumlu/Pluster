@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Mobil dokunmatik titreşim için eklendi
 
 void main() {
   runApp(const PulseGridApp());
@@ -33,7 +34,7 @@ class PulseGridApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Pluster',
+      title: 'Pulse Grid',
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B132B),
       ),
@@ -95,32 +96,29 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
     });
   }
 
-  // Tıkanma / Game Over Kontrolü
   bool _checkGameOverCondition() {
     List<TileData> activeTiles = spawnSlots.whereType<TileData>().toList();
     if (activeTiles.isEmpty) return false;
 
     for (var tile in activeTiles) {
-      // Bomba varsa her zaman hamle mümkündür
       if (tile.type == TileType.bomb) return false;
 
-      // Izgarada bu taşın konabileceği (toplam <= 8) bir hücre var mı?
       for (int r = 0; r < 4; r++) {
         for (int c = 0; c < 4; c++) {
           if (grid[r][c].value + tile.value <= 8) {
-            return false; // En az 1 geçerli hamle var
+            return false;
           }
         }
       }
     }
-    return true; // Hiçbir taş hiçbir yere sığmıyor!
+    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pluster', style: TextStyle(fontWeight: FontWeight.w300, letterSpacing: 1.5)),
+        title: const Text('Pulse Grid', style: TextStyle(fontWeight: FontWeight.w300, letterSpacing: 1.5)),
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -161,7 +159,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
                         aspectRatio: 1,
                         child: Stack(
                           children: [
-                            // Matris Izgarası
                             GridView.builder(
                               physics: const NeverScrollableScrollPhysics(),
                               itemCount: 16,
@@ -176,7 +173,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
                                 CellData cell = grid[r][c];
 
                                 return DragTarget<TileData>(
-                                  // KURAL: Maksimum 8 Kontrolü!
                                   onWillAcceptWithDetails: (details) {
                                     if (isProcessingPulse || isGameOver) return false;
                                     TileData tile = details.data;
@@ -196,7 +192,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
                               },
                             ),
 
-                            // Kombo Banner Overlay
                             if (activeComboTitle != null)
                               Center(
                                 child: Container(
@@ -244,6 +239,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
                       return Draggable<TileData>(
                         data: tile,
                         maxSimultaneousDrags: (isProcessingPulse || isGameOver) ? 0 : 1,
+                        onDragStarted: () {
+                          // Titreşim: Taş tutulduğunda hafif dokunuş hissi
+                          HapticFeedback.selectionClick();
+                        },
                         feedback: _buildTileWidget(tile, isDragging: true),
                         childWhenDragging: Opacity(
                           opacity: 0.15,
@@ -264,7 +263,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
               ],
             ),
 
-            // Game Over Ekranı Overlay
             if (isGameOver)
               Container(
                 color: Colors.black.withOpacity(0.85),
@@ -315,7 +313,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
-                          onPressed: _initGame,
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            _initGame();
+                          },
                           icon: const Icon(Icons.refresh_rounded, size: 22),
                           label: const Text('YENİDEN BAŞLA', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
                           style: ElevatedButton.styleFrom(
@@ -385,6 +386,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
 
   Future<void> _handleTilePlacement(int r, int c, TileData tile) async {
     if (tile.type == TileType.bomb) {
+      // Titreşim: Bomba yerleştirilince güçlü darbe
+      HapticFeedback.heavyImpact();
       setState(() {
         _clearCellAndNeighbors(r, c);
         score += 50;
@@ -392,6 +395,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
       _triggerScorePulse();
       return;
     }
+
+    // Titreşim: Normal taş yerleştirilince orta şiddette oturtma hissi
+    HapticFeedback.mediumImpact();
 
     setState(() {
       grid[r][c].value += tile.value;
@@ -404,8 +410,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
     _triggerScorePulse();
     await _processPulseQueue(r, c);
 
-    // Taş koyma sonrası Game Over kontrolü
     if (_checkGameOverCondition()) {
+      // Titreşim: Oyun bittiğinde uzun uyarı titreşimi
+      HapticFeedback.vibrate();
       setState(() => isGameOver = true);
     }
   }
@@ -446,6 +453,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
 
       if (grid[r][c].value == 0) continue;
 
+      // Titreşim: Her patlama dalgasında güçlü darbe
+      HapticFeedback.heavyImpact();
+
       bool wasMultiplier = grid[r][c].isMultiplier;
       int wavePower = wasMultiplier ? 2 : 1;
       int pointsEarned = 100 * comboCount * (wasMultiplier ? 2 : 1);
@@ -455,6 +465,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
       });
 
       if (comboCount >= 2) {
+        // Titreşim: Kombo tetiklendiğinde özel titreşim ritmi
+        HapticFeedback.vibrate();
         setState(() {
           activeComboTitle = comboCount == 2
               ? 'ZİNCİR x2!'
@@ -510,6 +522,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> {
     }
 
     if (_checkGameOverCondition()) {
+      HapticFeedback.vibrate();
       setState(() => isGameOver = true);
     }
   }
