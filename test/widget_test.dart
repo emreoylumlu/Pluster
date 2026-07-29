@@ -13,6 +13,6 @@ void main() {
   testWidgets('App shows the Pluster title', (WidgetTester tester) async {
     await tester.pumpWidget(const PulseGridApp());
 
-    expect(find.text('Pluster'), findsOneWidget);
+    expect(find.text('PLUSTER'), findsOneWidget);
   });
 }
