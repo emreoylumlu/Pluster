@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="4096" height="512" viewBox="0 0 4096 512" role="img" aria-label="Pluster premium energy bar">
+  <defs>
+    <!-- Glass shell subtle gradient -->
+    <linearGradient id="glassShell" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.28)" />
+      <stop offset="30%" stop-color="rgba(255,255,255,0.12)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0.02)" />
+    </linearGradient>
+
+    <!-- Soft outer rim -->
+    <linearGradient id="rim" x1="0" x2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.9)" stop-opacity="0.06" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0.9)" stop-opacity="0.02" />
+    </linearGradient>
+
+    <!-- Liquid gradient: mint -> pastel cyan -> sky blue -> very subtle lavender -->
+    <linearGradient id="liquidGrad" x1="0" x2="1">
+      <stop offset="0%" stop-color="#CFFAE6" />
+      <stop offset="40%" stop-color="#AEEEF6" />
+      <stop offset="75%" stop-color="#97D8FF" />
+      <stop offset="100%" stop-color="#EDEBFF" stop-opacity="0.9" />
+    </linearGradient>
+
+    <!-- Soft highlight gradient for liquid surface -->
+    <linearGradient id="shine" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.05" />
+    </linearGradient>
+
+    <!-- Filters for soft blur and inner shadow -->
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.6  0 0 0 0 0.74  0 0 0 0 0.92  0 0 0 0.4 0"/>
+      <feBlend in="SourceGraphic" in2="blur" mode="normal"/>
+    </filter>
+
+    <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur"/>
+      <feOffset dy="4" result="offset"/>
+      <feComposite in="offset" in2="SourceAlpha" operator="out" result="inner"/>
+      <feColorMatrix in="inner" type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0.25 0"/>
+      <feBlend in2="SourceGraphic" mode="normal"/>
+    </filter>
+
+    <!-- subtle drop shadow under the capsule -->
+    <filter id="drop" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" result="ds"/>
+      <feOffset dy="6" in="ds" result="off"/>
+      <feColorMatrix in="off" type="matrix" values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0   0 0 0 0.18 0" />
+      <feBlend in2="SourceGraphic" mode="normal"/>
+    </filter>
+
+    <!-- clip path for capsule -->
+    <clipPath id="capClip">
+      <rect x="64" y="96" rx="120" ry="120" width="3968" height="320" />
+    </clipPath>
+  </defs>
+
+  <!-- Transparent background intentionally left out -->
+
+  <!-- Soft shadow below capsule -->
+  <g filter="url(#drop)">
+    <rect x="64" y="120" rx="120" ry="120" width="3968" height="270" fill="rgba(0,0,0,0.12)"/>
+  </g>
+
+  <!-- Capsule shell -->
+  <rect x="64" y="96" rx="120" ry="120" width="3968" height="320"
+        fill="url(#glassShell)" stroke="rgba(255,255,255,0.16)" stroke-width="2" filter="url(#innerShadow)" />
+
+  <!-- Rim highlight (ultra thin) -->
+  <rect x="66" y="98" rx="118" ry="118" width="3964" height="316"
+        fill="none" stroke="url(#rim)" stroke-width="1.6" opacity="0.95" />
+
+  <!-- Liquid group clipped to capsule -->
+  <g clip-path="url(#capClip)">
+    <!-- calm flowing liquid base: wide smooth path -->
+    <path d="M64 288 C 512 220, 1024 260, 1536 250 C 2048 240, 2560 270, 3072 260 C 3584 250, 4032 290, 4032 290 L 4032 416 L 64 416 Z"
+          fill="url(#liquidGrad)" opacity="0.95" transform="translate(0,0)" />
+
+    <!-- additional subtle wave for depth -->
+    <path d="M64 264 C 512 208, 1024 230, 1536 220 C 2048 210, 2560 235, 3072 226 C 3584 218, 4032 260, 4032 260 L 4032 372 L 64 372 Z"
+          fill="#FFFFFF" opacity="0.06" />
+
+    <!-- soft blur to emulate liquid subsurface scattering -->
+    <g opacity="0.38" filter="url(#softGlow)">
+      <ellipse cx="2048" cy="260" rx="1400" ry="48" fill="#E8FBF7" />
+    </g>
+
+    <!-- top specular highlight -->
+    <path d="M96 132 C 512 106, 1024 120, 1536 116 C 2048 112, 2560 124, 3072 118 C 3584 112, 4032 130, 4032 130 L 4032 172 L 96 172 Z"
+          fill="url(#shine)" opacity="0.55" />
+
+    <!-- small ambient details (very subtle) -->
+    <g opacity="0.06">
+      <circle cx="420" cy="220" r="6" fill="#FFFFFF" />
+      <circle cx="1280" cy="240" r="4" fill="#FFFFFF" />
+      <circle cx="3000" cy="230" r="5" fill="#FFFFFF" />
+    </g>
+  </g>
+
+  <!-- tiny craft details: top-left cut glass bevel -->
+  <path d="M96 120 L 176 120 C 256 120, 320 140, 400 144 L 400 160 L 96 160 Z"
+        fill="rgba(255,255,255,0.04)" />
+
+  <!-- subtle bottom inner rim for premium feel -->
+  <rect x="64" y="350" rx="120" ry="120" width="3968" height="40" fill="rgba(0,0,0,0.02)" />
+
+  <!-- micro grain overlay for material tactile impression -->
+  <g opacity="0.02">
+    <rect x="64" y="96" width="3968" height="320" rx="120" fill="url(#grain)" />
+  </g>
+
+  <!-- Accessibility: invisible title -->
+  <title>PLUSTER premium energy bar (glassmorphism)</title>
+</svg>

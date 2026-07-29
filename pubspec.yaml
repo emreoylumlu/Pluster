@@ -35,6 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   audioplayers: ^6.8.1
+  flutter_svg: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -60,6 +61,11 @@ flutter:
 
   assets:
     - assets/background.jpeg
+    - assets/ic_menu.png
+    - assets/ic_pluster.png
+    - assets/energybar_design.svg
+    - assets/ic_refresh.png
+    - assets/ic_energy.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
