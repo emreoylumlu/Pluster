@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'top_bar.dart';
 import 'energy_section.dart';
 import 'sidebar.dart';
@@ -157,10 +156,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
     bool isLowEnergy = energy <= 25.0 && !isGameOver;
     final mq = MediaQuery.of(context);
     final double spacing = 10.0;
-    final double widthLimit = mq.size.width * 0.92;
-    final double heightLimit = mq.size.height * 0.60;
+    
+    // Responsive adjustments
+    final bool isNarrow = mq.size.width < 400;
+    final double sidebarWidth = isNarrow ? 80.0 : 100.0;
+    
+    // Adjust horizontal space taking sidebar into account
+    final double availableWidth = mq.size.width - (sidebarWidth + 44); // 16*2 padding + 12 gap
+    final double widthLimit = availableWidth * 0.98;
+    final double heightLimit = mq.size.height * 0.55;
+    
     final double boardWidth = min(widthLimit, heightLimit);
-    final double tileSize = max(48.0, min((boardWidth - spacing * 3) / 4.0, 92.0));
+    final double tileSize = max(42.0, min((boardWidth - spacing * 3) / 4.0, 92.0));
 
     return Scaffold(
       backgroundColor: const Color(0xFF121E38),
@@ -204,8 +211,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         SizedBox(
-                          width: 96,
-                          child: Sidebar(),
+                          width: sidebarWidth,
+                          child: Sidebar(width: sidebarWidth),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -268,8 +275,17 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
   Widget _buildMainBoard(BuildContext context, bool isLowEnergy, double tileSize, double spacing) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (constraints.maxWidth <= 0) {
+      return const SizedBox.shrink();
+    }
         final double maxBoardWidth = min(constraints.maxWidth, tileSize * 4 + spacing * 3);
-        final double adjustedTileSize = min((maxBoardWidth - spacing * 3) / 4.0, tileSize);
+        final double adjustedTileSize = max(
+  1.0,
+  min(
+    (maxBoardWidth - spacing * 3) / 4.0,
+    tileSize,
+  ),
+);
         return Center(
           child: SizedBox(
             width: adjustedTileSize * 4 + spacing * 3,
@@ -857,7 +873,7 @@ class PulseGridCell extends StatelessWidget {
                 ),
               ),
 
-              if (cellIcon != null && !isLocked) cellIcon!,
+              if (cellIcon != null && !isLocked) cellIcon,
 
               if (cell.isMultiplier && value > 0 && !isExploding)
                 Positioned(

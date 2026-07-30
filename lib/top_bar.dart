@@ -32,14 +32,14 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: br,
         gradient: LinearGradient(
-          colors: [Colors.white.withOpacity(0.04), Colors.white.withOpacity(0.01)],
+          colors: [Colors.white.withValues(alpha: 0.04), Colors.white.withValues(alpha: 0.01)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.08), width: 1.0),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.22), blurRadius: 18, offset: const Offset(0, 8)),
-          BoxShadow(color: Colors.white.withOpacity(0.02), blurRadius: 2, offset: const Offset(0, -1)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 18, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.white.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, -1)),
         ],
       ),
       child: Center(child: child),
@@ -133,14 +133,17 @@ class PlusterTopBar extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('PLUSTER', style: titleStyle, textAlign: TextAlign.center),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text('PLUSTER', style: titleStyle, textAlign: TextAlign.center),
+                ),
                 const SizedBox(height: 8),
                 SizedBox(
                   height: 22,
                   child: CustomPaint(
                     painter: _SineWavePainter(
                       color: const Color(0xFFAEEEF6),
-                      glowColor: const Color(0xFFAEEEF6).withOpacity(0.28),
+                      glowColor: const Color(0xFFAEEEF6).withValues(alpha: 0.28),
                       dotColor: const Color(0xFFFFFFFF),
                     ),
                     child: Container(),
@@ -163,7 +166,7 @@ class PlusterTopBar extends StatelessWidget {
                     Text(
                       'SKOR',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 11,
                         letterSpacing: 1.6,
                         fontWeight: FontWeight.w600,
@@ -194,12 +197,12 @@ class PlusterTopBar extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFAEEEF6).withOpacity(0.18),
+                            color: const Color(0xFFAEEEF6).withValues(alpha: 0.18),
                             blurRadius: 14,
                             spreadRadius: 2,
                           ),
                           BoxShadow(
-                            color: const Color(0xFFCFFAE6).withOpacity(0.08),
+                            color: const Color(0xFFCFFAE6).withValues(alpha: 0.08),
                             blurRadius: 6,
                             spreadRadius: 0,
                           ),
@@ -219,9 +222,9 @@ class PlusterTopBar extends StatelessWidget {
                             Color(0xFF0D2E18),
                           ],
                         ),
-                        border: Border.all(color: const Color(0xFFAEEEF6).withOpacity(0.18), width: 1.0),
+                        border: Border.all(color: const Color(0xFFAEEEF6).withValues(alpha: 0.18), width: 1.0),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 4)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: Center(
@@ -260,7 +263,11 @@ class _SineWavePainter extends CustomPainter {
       final double t = i / steps;
       final double x = t * w;
       final double y = yCenter + sin(t * frequency * 2 * pi) * amplitude;
-      if (i == 0) path.moveTo(x, y); else path.lineTo(x, y);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
     }
 
     final Paint glow = Paint()
@@ -280,13 +287,13 @@ class _SineWavePainter extends CustomPainter {
 
     final Offset centerDot = Offset(w * 0.5, yCenter + sin(0.5 * frequency * 2 * pi) * amplitude);
     final double dotRadius = 3.8;
-    final Paint dotGlow = Paint()..color = glowColor.withOpacity(0.9)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    final Paint dotGlow = Paint()..color = glowColor.withValues(alpha: 0.9)..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
     canvas.drawCircle(centerDot, dotRadius * 2.6, dotGlow);
 
     final Paint dot = Paint()..color = dotColor;
     canvas.drawCircle(centerDot, dotRadius, dot);
 
-    final Paint highlight = Paint()..color = Colors.white.withOpacity(0.02);
+    final Paint highlight = Paint()..color = Colors.white.withValues(alpha: 0.02);
     for (int i = 1; i <= 3; i++) {
       final double tx = w * (0.24 * i);
       final double ty = yCenter + sin((tx / w) * frequency * 2 * pi) * amplitude;

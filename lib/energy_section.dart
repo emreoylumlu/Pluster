@@ -78,7 +78,7 @@ class EnergySection extends StatelessWidget {
                       Text(
                         'ŞEBEKE ENERJİSİ',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.82),
+                          color: Colors.white.withValues(alpha: 0.82),
                           fontSize: 11,
                           letterSpacing: 2.0,
                           fontWeight: FontWeight.w600,
@@ -118,7 +118,7 @@ class EnergySection extends StatelessWidget {
                                       fontSize: 14,
                                       fontWeight: FontWeight.w900,
                                       shadows: [
-                                        Shadow(color: floatingTextColor.withOpacity(0.35), blurRadius: 18, offset: const Offset(0, 2)),
+                                        Shadow(color: floatingTextColor.withValues(alpha: 0.35), blurRadius: 18, offset: const Offset(0, 2)),
                                       ],
                                     ),
                                   ),
@@ -133,11 +133,11 @@ class EnergySection extends StatelessWidget {
                                 Container(
                                   height: 16,
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.35),
+                                    color: Colors.black.withValues(alpha: 0.35),
                                     borderRadius: BorderRadius.circular(10),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: isLowEnergy ? Colors.redAccent.withOpacity(0.25) : Colors.black.withOpacity(0.25),
+                                        color: isLowEnergy ? Colors.redAccent.withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.25),
                                         blurRadius: 8,
                                         spreadRadius: 0.5,
                                       ),
@@ -174,8 +174,8 @@ class EnergySection extends StatelessWidget {
                                           boxShadow: [
                                             BoxShadow(
                                               color: energyPulseDirection == 0
-                                                  ? const Color(0xFF7FFFD4).withOpacity(0.26)
-                                                  : pulseAccent.withOpacity(0.45),
+                                                  ? const Color(0xFF7FFFD4).withValues(alpha: 0.26)
+                                                  : pulseAccent.withValues(alpha: 0.45),
                                               blurRadius: 16,
                                               spreadRadius: energyPulseDirection == 0 ? 1 : 2,
                                             ),
@@ -195,7 +195,7 @@ class EnergySection extends StatelessWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.04),
+                                color: Colors.white.withValues(alpha: 0.04),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -232,7 +232,7 @@ class EnergySection extends StatelessWidget {
                   Text(
                     'KOMBO',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.72),
+                      color: Colors.white.withValues(alpha: 0.72),
                       fontSize: 12,
                       letterSpacing: 1.6,
                       fontWeight: FontWeight.w600,

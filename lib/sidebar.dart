@@ -17,56 +17,57 @@ class SidebarStatItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Icon with circular glow background
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.white.withOpacity(0.02),
-            boxShadow: [
-              BoxShadow(
-                color: iconColor.withOpacity(0.26),
-                blurRadius: 18,
-                spreadRadius: 4,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.02),
+              boxShadow: [
+                BoxShadow(
+                  color: iconColor.withValues(alpha: 0.26),
+                  blurRadius: 18,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Icon(icon, color: iconColor, size: 26),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 84,
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.78),
+                fontSize: 10,
+                letterSpacing: 1.0,
+                fontWeight: FontWeight.w600,
+                height: 1.2,
               ),
-            ],
+            ),
           ),
-          child: Center(
-            child: Icon(icon, color: iconColor, size: 30),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Label (can wrap to multiple lines)
-        Text(
-          label.toUpperCase(),
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.78),
-            fontSize: 9,
-            letterSpacing: 1.4,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-
-        const SizedBox(height: 6),
-
-        // Value
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -76,7 +77,7 @@ class Sidebar extends StatelessWidget {
 
   const Sidebar({
     super.key,
-    this.width = 96,
+    this.width = 100,
   });
 
   @override
@@ -85,52 +86,39 @@ class Sidebar extends StatelessWidget {
       width: width,
       child: GlassCard(
         borderRadius: BorderRadius.circular(18),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
         child: Column(
           children: [
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  SidebarStatItem(
-                    icon: Icons.auto_awesome,
-                    iconColor: Color(0xFF7FFFD4),
-                    label: 'PATLAMALAR',
-                    value: '23',
-                  ),
-                ],
+              child: Center(
+                child: SidebarStatItem(
+                  icon: Icons.auto_awesome,
+                  iconColor: const Color(0xFF7FFFD4),
+                  label: 'PATLAMALAR',
+                  value: '23',
+                ),
               ),
             ),
-
-            Divider(color: Colors.white.withOpacity(0.12), height: 1),
-
+            Divider(color: Colors.white.withValues(alpha: 0.12), height: 1),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  SidebarStatItem(
-                    icon: Icons.star_border,
-                    iconColor: Color(0xFFB794F6),
-                    label: 'EN YÜKSEK\nKOMBO',
-                    value: '12',
-                  ),
-                ],
+              child: Center(
+                child: SidebarStatItem(
+                  icon: Icons.star_border,
+                  iconColor: const Color(0xFFB794F6),
+                  label: 'EN YÜKSEK\nKOMBO',
+                  value: '12',
+                ),
               ),
             ),
-
-            Divider(color: Colors.white.withOpacity(0.12), height: 1),
-
+            Divider(color: Colors.white.withValues(alpha: 0.12), height: 1),
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  SidebarStatItem(
-                    icon: Icons.eco,
-                    iconColor: Color(0xFF7FFFD4),
-                    label: 'ENERJİ\nKAZANCI',
-                    value: '+320',
-                  ),
-                ],
+              child: Center(
+                child: SidebarStatItem(
+                  icon: Icons.eco,
+                  iconColor: const Color(0xFF7FFFD4),
+                  label: 'ENERJİ\nKAZANCI',
+                  value: '+320',
+                ),
               ),
             ),
           ],

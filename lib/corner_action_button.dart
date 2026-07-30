@@ -43,14 +43,14 @@ class CornerActionButton extends StatelessWidget {
                     height: buttonSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.24),
+                      color: Colors.black.withValues(alpha: 0.24),
                       border: Border.all(
-                        color: iconColor.withOpacity(0.4),
+                        color: iconColor.withValues(alpha: 0.4),
                         width: 1.2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: glowColor.withOpacity(0.32),
+                          color: glowColor.withValues(alpha: 0.32),
                           blurRadius: 22,
                           spreadRadius: 2,
                         ),

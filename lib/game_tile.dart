@@ -37,7 +37,7 @@ class GameTile extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.35),
+                  color: Colors.black.withValues(alpha: 0.35),
                   blurRadius: 12,
                   offset: const Offset(0, 8),
                 ),
@@ -49,7 +49,7 @@ class GameTile extends StatelessWidget {
                 child: Icon(
                   Icons.lock,
                   size: 32,
-                  color: Colors.white.withOpacity(0.85),
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ),
@@ -61,15 +61,15 @@ class GameTile extends StatelessWidget {
             width: tileSize,
             height: tileSize,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.08),
+              color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.15), width: 1.2),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.2),
             ),
             child: Center(
               child: Icon(
                 Icons.eco,
                 size: tileSize * 0.32,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           );
@@ -83,11 +83,11 @@ class GameTile extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [color!.withOpacity(0.95), color!.withOpacity(0.72)],
+              colors: [color!.withValues(alpha: 0.95), color!.withValues(alpha: 0.72)],
             ),
             boxShadow: [
               BoxShadow(
-                color: color!.withOpacity(0.28),
+                color: color!.withValues(alpha: 0.28),
                 blurRadius: 12,
                 spreadRadius: 1,
                 offset: const Offset(0, 5),
@@ -108,7 +108,7 @@ class GameTile extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.white.withOpacity(0.30), Colors.white.withOpacity(0.01)],
+                      colors: [Colors.white.withValues(alpha: 0.30), Colors.white.withValues(alpha: 0.01)],
                     ),
                   ),
                 ),
@@ -123,10 +123,10 @@ class GameTile extends StatelessWidget {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.black.withOpacity(0.26),
+                      color: Colors.black.withValues(alpha: 0.26),
                     ),
                     child: Center(
-                      child: Icon(badgeIcon, size: 14, color: Colors.white.withOpacity(0.92)),
+                      child: Icon(badgeIcon, size: 14, color: Colors.white.withValues(alpha: 0.92)),
                     ),
                   ),
                 ),
@@ -139,7 +139,7 @@ class GameTile extends StatelessWidget {
                     fontSize: 38,
                     fontWeight: FontWeight.w900,
                     shadows: [
-                      Shadow(color: Colors.black.withOpacity(0.4), blurRadius: 8, offset: const Offset(0, 2)),
+                      Shadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2)),
                     ],
                   ),
                 ),
@@ -155,7 +155,7 @@ class GameTile extends StatelessWidget {
 class _LockedTilePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withOpacity(0.08)..strokeWidth = 1.2;
+    final paint = Paint()..color = Colors.white.withValues(alpha: 0.08)..strokeWidth = 1.2;
     final path = Path();
 
     const lineCount = 4;
