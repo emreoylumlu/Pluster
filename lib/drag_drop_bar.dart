@@ -109,8 +109,12 @@ class DragDropBar extends StatelessWidget {
         return const Color(0xFFAB6FDB);
       case 3:
         return const Color(0xFFFF9E5E);
+      case 4:
+        return const Color(0xFF66D19E);
+      case 5:
+        return const Color(0xFFFFD166);
       default:
-        return Colors.white24;
+        return const Color(0xFFFF6FA8);
     }
   }
 

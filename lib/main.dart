@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,13 +9,165 @@ import 'corner_action_button.dart';
 import 'game_models.dart';
 import 'game_tile.dart';
 import 'drag_drop_bar.dart';
+import 'main_menu_screen.dart';
+import 'level_select_screen.dart';
+import 'levels.dart';
 
 void main() {
   runApp(const PulseGridApp());
 }
 
-class PulseGridApp extends StatelessWidget {
+class PulseGridApp extends StatefulWidget {
   const PulseGridApp({super.key});
+
+  @override
+  State<PulseGridApp> createState() => _PulseGridAppState();
+}
+
+class _PulseGridAppState extends State<PulseGridApp> {
+  GameMode? activeMode;
+  LevelData? selectedLevel;
+  int globalHighScore = 0;
+  Map<int, int> levelStars = {}; // levelId -> stars (0-3)
+
+  int get unlockedUpTo {
+    // Unlock next level after each completion; start with level 1 open
+    for (int i = kAllLevels.length - 1; i >= 0; i--) {
+      if ((levelStars[kAllLevels[i].id] ?? 0) > 0) {
+        return (kAllLevels[i].id + 1).clamp(1, kAllLevels.length);
+      }
+    }
+    return 1; // only level 1 unlocked initially
+  }
+
+  void _updateHighScore(int newScore) {
+    if (newScore > globalHighScore) {
+      setState(() {
+        globalHighScore = newScore;
+      });
+    }
+  }
+
+  void _onLevelComplete(int levelId, int stars) {
+    setState(() {
+      final existing = levelStars[levelId] ?? 0;
+      if (stars > existing) levelStars[levelId] = stars;
+    });
+  }
+
+  void _showHelpBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return DefaultTabController(
+          length: 3,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: GlassCard(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.65,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Pluster Kılavuzu',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const TabBar(
+                        indicatorColor: Color(0xFF7FFFD4),
+                        labelColor: Color(0xFF7FFFD4),
+                        unselectedLabelColor: Colors.white60,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        tabs: [
+                          Tab(text: 'Temel'),
+                          Tab(text: 'Özellikler'),
+                          Tab(text: 'Taktikler'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Expanded(
+                      child: TabBarView(
+                        children: [
+                          SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('🎯 TEMEL OYNANIŞ', style: TextStyle(color: Color(0xFF7FFFD4), fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text('• Ekranın altındaki 3 sürükle-bırak slotundan taşları 4x4 oyun tahtasına yerleştir.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• Aynı hücreye taş koyarak değerini 8\'e ulaştır.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• Değeri 8 olan hücre PATLAR ve etrafındaki komşulara ŞOK DALGASI yayarak kombo başlatır!', style: TextStyle(color: Colors.white70)),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('⚡ ÖZEL HÜCRELER', style: TextStyle(color: Color(0xFFFFD166), fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text('• 🧲 EMP Hücresi: Patladığında tüm satır ve sütunu anında temizler.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• ⭐ Çapraz Patlama: Şok dalgasını sadece çapraz komşulara iletir.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• ⚡ 2x Enerji & ✨ 2x Skor: İki kat enerji veya puan kazandırır.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• 🔒 Kilitli Hücre: Sürüklenemez, patlamalarla kırılır.', style: TextStyle(color: Colors.white70)),
+                              ],
+                            ),
+                          ),
+                          SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('💥 YARDIMCI YETENEKLER', style: TextStyle(color: Color(0xFF6AD4FF), fontSize: 16, fontWeight: FontWeight.bold)),
+                                SizedBox(height: 8),
+                                Text('• 💥 Aşırı Yük: Sıkıştığında 1 hücreyi imha eder ve +20⚡ verir.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• 🔄 Yenile: 3 taş slotunu yeni taşlarla tazeleyerek çıkmazdan kurtarır.', style: TextStyle(color: Colors.white70)),
+                                SizedBox(height: 6),
+                                Text('• 🎬 Reklam Canlanma: Yandığında 1 defa %50 Enerji ile oyuna devam etmeni sağlar.', style: TextStyle(color: Colors.white70)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +177,70 @@ class PulseGridApp extends StatelessWidget {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B132B),
       ),
-      home: const PulseGridScreen(),
+      home: activeMode == null
+          ? MainMenuScreen(
+              highScore: globalHighScore,
+              onSelectMode: (mode) {
+                setState(() {
+                  activeMode = mode;
+                  selectedLevel = null;
+                });
+              },
+              onOpenHelp: () => _showHelpBottomSheet(context),
+            )
+          : (activeMode == GameMode.stage && selectedLevel == null)
+              ? LevelSelectScreen(
+                  levelStars: levelStars,
+                  unlockedUpTo: unlockedUpTo,
+                  onSelectLevel: (level) {
+                    setState(() => selectedLevel = level);
+                  },
+                  onBackToMenu: () {
+                    setState(() {
+                      activeMode = null;
+                      selectedLevel = null;
+                    });
+                  },
+                )
+              : PulseGridScreen(
+                  mode: activeMode!,
+                  level: selectedLevel,
+                  initialHighScore: globalHighScore,
+                  onHighScoreUpdated: _updateHighScore,
+                  onLevelComplete: _onLevelComplete,
+                  onBackToMenu: () {
+                    setState(() {
+                      activeMode = null;
+                      selectedLevel = null;
+                    });
+                  },
+                  onBackToLevelSelect: () {
+                    setState(() => selectedLevel = null);
+                  },
+                ),
     );
   }
 }
 
 class PulseGridScreen extends StatefulWidget {
-  const PulseGridScreen({super.key});
+  final GameMode mode;
+  final LevelData? level;
+  final int initialHighScore;
+  final ValueChanged<int> onHighScoreUpdated;
+  final void Function(int levelId, int stars)? onLevelComplete;
+  final VoidCallback onBackToMenu;
+  final VoidCallback? onBackToLevelSelect;
+
+  const PulseGridScreen({
+    super.key,
+    required this.mode,
+    this.level,
+    required this.initialHighScore,
+    required this.onHighScoreUpdated,
+    this.onLevelComplete,
+    required this.onBackToMenu,
+    this.onBackToLevelSelect,
+  });
 
   @override
   State<PulseGridScreen> createState() => _PulseGridScreenState();
@@ -68,6 +278,21 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   bool unlockedDiagonalToastShown = false;
   bool unlockedLockedToastShown = false;
 
+  bool hasUsedAdRevive = false;
+  bool isPlayingAd = false;
+  int adCountdown = 3;
+
+  // ── Level Mode Tracking ──────────────────────
+  int levelMoveCount = 0;
+  int levelBombsUsed = 0;
+  int levelComboChains = 0;
+  int levelEmpFired = 0;
+  int levelLockedCleared = 0;
+  int levelMultiplierExplosions = 0;
+  bool isLevelComplete = false;
+  bool isLevelFailed = false;
+  int _levelCompletedStars = 0;
+
   late AnimationController _dangerPulseController;
   late AnimationController _shakeController;
 
@@ -102,6 +327,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     score += delta;
     if (score > highScore) {
       highScore = score;
+      widget.onHighScoreUpdated(highScore);
     }
     _checkScoreUnlocks();
   }
@@ -155,16 +381,19 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   void _initGame() {
+    final level = widget.level;
     setState(() {
       grid = List.generate(4, (_) => List.generate(4, (_) => CellData()));
       _assignRandomSpecialCells();
       spawnSlots = List.generate(3, (_) => _generateRandomTile());
+      if (level != null) _applyLevelSpawnForces(level);
       score = 0;
-      energy = 100.0;
+      highScore = widget.initialHighScore;
+      energy = level?.constraints?.startEnergy ?? 100.0;
       explosionsCount = 0;
       maxCombo = 0;
-      overloadCharges = 2;
-      refreshCharges = 1;
+      overloadCharges = (level?.constraints?.noOverload ?? false) ? 0 : 2;
+      refreshCharges = (level?.constraints?.noRefresh ?? false) ? 0 : 1;
       unlockedEmpToastShown = false;
       unlockedDiagonalToastShown = false;
       unlockedLockedToastShown = false;
@@ -173,28 +402,57 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       isProcessingPulse = false;
       activeComboTitle = null;
       energyFloatingText = null;
+      hasUsedAdRevive = false;
+      isPlayingAd = false;
+      adCountdown = 3;
+      // Level tracking reset
+      levelMoveCount = 0;
+      levelBombsUsed = 0;
+      levelComboChains = 0;
+      levelEmpFired = 0;
+      levelLockedCleared = 0;
+      levelMultiplierExplosions = 0;
+      isLevelComplete = false;
+      isLevelFailed = false;
+      _levelCompletedStars = 0;
     });
   }
 
+  void _applyLevelSpawnForces(LevelData level) {
+    if (level.forceBombAvailable &&
+        !spawnSlots.any((t) => t?.type == TileType.bomb)) {
+      final idx = Random().nextInt(3);
+      spawnSlots[idx] = TileData(value: 0, type: TileType.bomb);
+    }
+    if (level.forceMultiplierAvailable &&
+        !spawnSlots.any((t) => t?.type == TileType.multiplier)) {
+      int idx;
+      do {
+        idx = Random().nextInt(3);
+      } while (spawnSlots[idx]?.type == TileType.bomb);
+      spawnSlots[idx] = TileData(value: 2, type: TileType.multiplier);
+    }
+  }
+
   void _assignRandomSpecialCells() {
+    final level = widget.level;
     Random rng = Random();
     List<int> indices = List.generate(16, (i) => i)..shuffle();
 
-    // Kademeli Özel Hücre Açılımı (Progressive Unlocking)
-    // Başlangıçta daha sade (doubleEnergy & doubleScore), skor arttıkça karmaşıklaşır
-    List<CellSpecialType> specials = [
-      CellSpecialType.doubleEnergy,
-      CellSpecialType.doubleScore,
-    ];
+    List<CellSpecialType> specials;
 
-    if (score >= 300) {
-      specials.add(CellSpecialType.emp);
-    }
-    if (score >= 600) {
-      specials.add(CellSpecialType.diagonal);
-    }
-    if (score >= 1000) {
-      specials.add(CellSpecialType.locked);
+    if (level != null && level.guaranteedCells.isNotEmpty) {
+      // Level mode: use guaranteed cells list
+      specials = List.from(level.guaranteedCells);
+    } else {
+      // Endless mode: progressive unlocking
+      specials = [
+        CellSpecialType.doubleEnergy,
+        CellSpecialType.doubleScore,
+      ];
+      if (score >= 300) specials.add(CellSpecialType.emp);
+      if (score >= 600) specials.add(CellSpecialType.diagonal);
+      if (score >= 1000) specials.add(CellSpecialType.locked);
     }
 
     for (int i = 0; i < specials.length && i < indices.length; i++) {
@@ -214,12 +472,89 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   TileData _generateRandomTile() {
     int roll = Random().nextInt(100);
     if (roll < 75) {
-      return TileData(value: Random().nextInt(3) + 1, type: TileType.normal);
+      int val;
+      if (score >= 8000) {
+        int sub = Random().nextInt(100);
+        if (sub < 20) {
+          val = 1;
+        } else if (sub < 45) {
+          val = 2;
+        } else if (sub < 70) {
+          val = 3;
+        } else if (sub < 85) {
+          val = 4;
+        } else {
+          val = 5;
+        }
+      } else if (score >= 3000) {
+        int sub = Random().nextInt(100);
+        if (sub < 25) {
+          val = 1;
+        } else if (sub < 55) {
+          val = 2;
+        } else if (sub < 80) {
+          val = 3;
+        } else {
+          val = 4;
+        }
+      } else {
+        val = Random().nextInt(3) + 1;
+      }
+      return TileData(value: val, type: TileType.normal);
     } else if (roll < 90) {
       return TileData(value: Random().nextInt(2) + 1, type: TileType.multiplier);
     } else {
       return TileData(value: 0, type: TileType.bomb);
     }
+  }
+
+  void _startAdReviveFlow() {
+    setState(() {
+      isPlayingAd = true;
+      adCountdown = 3;
+    });
+
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (adCountdown > 1) {
+        setState(() {
+          adCountdown--;
+        });
+      } else {
+        timer.cancel();
+        _applyAdRevive();
+      }
+    });
+  }
+
+  void _applyAdRevive() {
+    setState(() {
+      isPlayingAd = false;
+      isGameOver = false;
+      hasUsedAdRevive = true;
+      energy = 50.0;
+      overloadCharges += 1;
+
+      int cleared = 0;
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].value > 0 && grid[r][c].specialType != CellSpecialType.locked) {
+            grid[r][c].value = 0;
+            grid[r][c].isMultiplier = false;
+            grid[r][c].specialType = CellSpecialType.none;
+            cleared++;
+            if (cleared >= 2) break;
+          }
+        }
+        if (cleared >= 2) break;
+      }
+    });
+
+    _showEnergyFloatingText('🎬 CANLANDIN! +50% ⚡');
+    _triggerEnergyPulse(true);
   }
 
   void _triggerScorePulse() {
@@ -252,7 +587,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    bool isLowEnergy = energy <= 25.0 && !isGameOver;
+    bool isLowEnergy = energy <= 25.0 && !isGameOver && !isLevelComplete && !isLevelFailed;
     final mq = MediaQuery.of(context);
     final double spacing = 10.0;
     
@@ -300,7 +635,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                   PlusterTopBar(
                     score: score,
                     highScore: highScore,
-                    onMenu: () {},
+                    onMenu: () => _showMenuDialog(context),
                     onHelp: () => _showHowToPlay(context),
                   ),
                   const SizedBox(height: 16),
@@ -321,12 +656,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                       children: [
                         SizedBox(
                           width: sidebarWidth,
-                          child: Sidebar(
-                            width: sidebarWidth,
-                            explosionsCount: explosionsCount,
-                            maxCombo: maxCombo,
-                            highScore: highScore,
-                          ),
+                          child: widget.level != null
+                              ? _buildLevelObjectivesPanel(sidebarWidth)
+                              : Sidebar(
+                                  width: sidebarWidth,
+                                  explosionsCount: explosionsCount,
+                                  maxCombo: maxCombo,
+                                  highScore: highScore,
+                                ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -387,6 +724,25 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                           ],
                         ),
                         const SizedBox(height: 24),
+                        if (!hasUsedAdRevive) ...[
+                          ElevatedButton.icon(
+                            onPressed: _startAdReviveFlow,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFFD166),
+                              foregroundColor: const Color(0xFF0F1B35),
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 10,
+                              shadowColor: const Color(0xFFFFD166).withValues(alpha: 0.5),
+                            ),
+                            icon: const Icon(Icons.play_circle_fill_rounded, size: 24, color: Color(0xFF0F1B35)),
+                            label: const Text(
+                              'REKLAM İZLE VE DEVAM ET (+50% ⚡)',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
                         ElevatedButton.icon(
                           onPressed: _initGame,
                           style: ElevatedButton.styleFrom(
@@ -399,17 +755,445 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                           icon: const Icon(Icons.replay, size: 22),
                           label: const Text('ANINDA YENİDEN BAŞLAT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
                         ),
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: widget.onBackToMenu,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white70,
+                            side: const BorderSide(color: Colors.white24, width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          ),
+                          icon: const Icon(Icons.home_rounded, size: 20, color: Color(0xFF00E676)),
+                          label: const Text('ANA MENÜYE DÖN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        ),
                       ],
                     ),
                   ),
                 ),
               ),
             ),
+          if (isPlayingAd)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.90),
+                child: Center(
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.all(28),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF101C38),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: const Color(0xFFFFD166), width: 2),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFFFFD166).withValues(alpha: 0.4), blurRadius: 30),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.movie_creation_rounded, size: 56, color: Color(0xFFFFD166)),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'REKLAM İZLENİYOR...',
+                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: 1.5),
+                        ),
+                        const SizedBox(height: 16),
+                        const CircularProgressIndicator(color: Color(0xFFFFD166)),
+                        const SizedBox(height: 20),
+                        Text(
+                          'Kalan Süre: $adCountdown saniye',
+                          style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          '🎁 Ödül: +50% Enerji & 1 Aşırı Yük!',
+                          style: TextStyle(color: Color(0xFF00E676), fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (isLevelComplete)
+            _buildLevelCompleteOverlay(),
+          if (isLevelFailed)
+            _buildLevelFailedOverlay(),
         ],
       ),
     );
   }
 
+  Widget _buildLevelObjectivesPanel(double width) {
+    final level = widget.level!;
+    final moveLimit = level.constraints?.moveLimit;
+    final movesLeft = moveLimit != null ? (moveLimit - levelMoveCount).clamp(0, moveLimit) : null;
+
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Level title
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: level.isBoss
+                  ? const Color(0xFFFF4500).withValues(alpha: 0.15)
+                  : const Color(0xFF00BFA5).withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: level.isBoss
+                    ? const Color(0xFFFF6B35).withValues(alpha: 0.5)
+                    : const Color(0xFF00BFA5).withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'SEVİYE ${level.id}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                if (movesLeft != null) ...[  
+                  const SizedBox(height: 3),
+                  Text(
+                    '$movesLeft H.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: movesLeft <= 5 ? Colors.redAccent : Colors.white70,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    'hamle kaldı',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.4),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Objectives list
+          Expanded(
+            child: ListView.separated(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: level.objectives.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 6),
+              itemBuilder: (context, i) {
+                final obj = level.objectives[i];
+                final met = _isObjectiveMet(obj);
+                return Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: met
+                        ? const Color(0xFF00BFA5).withValues(alpha: 0.12)
+                        : Colors.white.withValues(alpha: 0.04),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: met
+                          ? const Color(0xFF00BFA5).withValues(alpha: 0.4)
+                          : Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                            size: 12,
+                            color: met ? const Color(0xFF00BFA5) : Colors.white38,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              obj.label,
+                              style: TextStyle(
+                                color: met ? const Color(0xFF7FFFD4) : Colors.white60,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      // Progress bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: _getObjectiveProgress(obj).clamp(0.0, 1.0),
+                          backgroundColor: Colors.white.withValues(alpha: 0.08),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            met ? const Color(0xFF00BFA5) : const Color(0xFF4FC3F7),
+                          ),
+                          minHeight: 4,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  double _getObjectiveProgress(LevelObjective obj) {
+    switch (obj.type) {
+      case ObjectiveType.scoreTarget:
+        return score / obj.target;
+      case ObjectiveType.comboCount:
+        return levelComboChains / obj.target;
+      case ObjectiveType.empCount:
+        return levelEmpFired / obj.target;
+      case ObjectiveType.clearLocked:
+        return levelLockedCleared / obj.target;
+      case ObjectiveType.energyRemaining:
+        return energy / obj.target;
+      case ObjectiveType.bombUsed:
+        return levelBombsUsed / obj.target;
+      case ObjectiveType.multiplierExplosion:
+        return levelMultiplierExplosions / obj.target;
+    }
+  }
+
+  Widget _buildLevelCompleteOverlay() {
+    final level = widget.level!;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.80),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0A1E30),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: const Color(0xFF00BFA5), width: 2),
+              boxShadow: [
+                BoxShadow(
+                    color: const Color(0xFF00BFA5).withValues(alpha: 0.4),
+                    blurRadius: 40,
+                    spreadRadius: 4),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('✅', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 10),
+                const Text(
+                  'SEVİYE TAMAMLANDI!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  level.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.6),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Stars
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(3, (i) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0.0, end: 1.0),
+                        duration: Duration(milliseconds: 300 + i * 150),
+                        curve: Curves.elasticOut,
+                        builder: (context, scale, _) => Transform.scale(
+                          scale: scale,
+                          child: Icon(
+                            i < _levelCompletedStars
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            size: 40,
+                            color: i < _levelCompletedStars
+                                ? const Color(0xFFFFD166)
+                                : Colors.white24,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Text('SKOR', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.w700)),
+                    const Spacer(),
+                    Text('$score', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (level.id < 50)
+                  ElevatedButton.icon(
+                    onPressed: () => widget.onBackToLevelSelect?.call(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00BFA5),
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 46),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 8,
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded, size: 20),
+                    label: const Text('SEVİYE SEÇİMİNE DÖN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: widget.onBackToMenu,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(double.infinity, 42),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.home_rounded, size: 18, color: Color(0xFF00E676)),
+                  label: const Text('ANA MENÜYE DÖN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelFailedOverlay() {
+    final level = widget.level!;
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.80),
+        child: Center(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A0A0A),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.7), width: 2),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.redAccent.withValues(alpha: 0.3),
+                    blurRadius: 40,
+                    spreadRadius: 2),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('❌', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 10),
+                const Text(
+                  'SEVİYE BAŞARISIZ',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  level.name,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // Objective status
+                ...level.objectives.map((obj) {
+                  final met = _isObjectiveMet(obj);
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Icon(
+                          met ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                          size: 16,
+                          color: met ? const Color(0xFF00BFA5) : Colors.redAccent,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            obj.label,
+                            style: TextStyle(
+                              color: met ? Colors.white70 : Colors.white38,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              decoration: met ? TextDecoration.lineThrough : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: _initGame,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF4A4A),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 46),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 8,
+                  ),
+                  icon: const Icon(Icons.replay_rounded, size: 20),
+                  label: const Text('TEKRAR DENE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => widget.onBackToLevelSelect?.call(),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                    minimumSize: const Size(double.infinity, 42),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.grid_view_rounded, size: 18),
+                  label: const Text('SEVİYE SEÇİMİNE DÖN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildMainBoard(BuildContext context, bool isLowEnergy, double tileSize, double spacing) {
     return LayoutBuilder(
@@ -518,7 +1302,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                       onTap: () => _onCellTapped(r, c),
                       child: DragTarget<TileData>(
                         onWillAcceptWithDetails: (details) {
-                          if (isProcessingPulse || isGameOver) return false;
+                          if (isProcessingPulse || isGameOver || isLevelComplete || isLevelFailed) return false;
                           if (cell.specialType == CellSpecialType.locked) return false;
 
                           TileData tile = details.data;
@@ -727,6 +1511,13 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   Future<void> _handleTilePlacement(int r, int c, TileData tile) async {
     bool willExplode = false;
+    final level = widget.level;
+
+    // Level move tracking
+    if (level != null) {
+      levelMoveCount++;
+      if (tile.type == TileType.bomb) levelBombsUsed++;
+    }
 
     if (tile.type == TileType.bomb) {
       HapticFeedback.heavyImpact();
@@ -742,6 +1533,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       _showEnergyFloatingText('+${energyGained.toInt()}⚡');
       _triggerEnergyPulse(true);
       _triggerScorePulse();
+      if (level != null) _checkLevelObjectives();
       return;
     }
 
@@ -772,9 +1564,15 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       await _processPulseQueue(r, c);
     }
 
-    if (energy <= 0) {
+    if (level != null) _checkLevelObjectives();
+
+    if (energy <= 0 && !isLevelComplete) {
       HapticFeedback.vibrate();
-      setState(() => isGameOver = true);
+      if (level != null) {
+        setState(() => isLevelFailed = true);
+      } else {
+        setState(() => isGameOver = true);
+      }
     }
   }
 
@@ -812,6 +1610,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
 
     int comboCount = 1;
+    bool hadChainCombo = false; // track if any chain happened in this run
 
     while (queue.isNotEmpty) {
       _Point current = queue.removeAt(0);
@@ -831,6 +1630,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           activeComboTitle = '🧲 EMP ŞOK DALGASI!';
         });
         HapticFeedback.vibrate();
+        if (widget.level != null) levelEmpFired++;
 
         for (int i = 0; i < 4; i++) {
           grid[r][i].value = 0;
@@ -852,6 +1652,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         energyGained *= 2;
       }
 
+      // Çarpan patlama sayacı
+      if (wasMultiplier && widget.level != null) {
+        levelMultiplierExplosions++;
+      }
+
       setState(() {
         String tag = '';
         if (currentSpecial == CellSpecialType.doubleScore) tag += ' (2x Skor)';
@@ -866,6 +1671,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       _triggerEnergyPulse(true);
 
       if (comboCount >= 2 && currentSpecial != CellSpecialType.emp) {
+        hadChainCombo = true;
         HapticFeedback.vibrate();
         setState(() {
           activeComboTitle = comboCount == 2
@@ -918,6 +1724,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
             if (grid[n.r][n.c].specialType == CellSpecialType.locked) {
               grid[n.r][n.c].specialType = CellSpecialType.none;
               grid[n.r][n.c].value = wavePower;
+              if (widget.level != null) levelLockedCleared++;
             } else {
               grid[n.r][n.c].value += wavePower;
             }
@@ -932,6 +1739,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       comboCount++;
     }
 
+    // Count this as a combo chain if 2+ explosions occurred
+    if (hadChainCombo && widget.level != null) {
+      levelComboChains++;
+    }
+
     await Future.delayed(const Duration(milliseconds: 300));
     setState(() {
       activeComboTitle = null;
@@ -939,17 +1751,132 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     });
   }
 
+  // ── Level objective helpers ─────────────────────────────────────────────
+
+  bool _isObjectiveMet(LevelObjective obj) {
+    switch (obj.type) {
+      case ObjectiveType.scoreTarget:
+        return score >= obj.target;
+      case ObjectiveType.comboCount:
+        return levelComboChains >= obj.target;
+      case ObjectiveType.empCount:
+        return levelEmpFired >= obj.target;
+      case ObjectiveType.clearLocked:
+        return levelLockedCleared >= obj.target;
+      case ObjectiveType.energyRemaining:
+        return energy >= obj.target.toDouble();
+      case ObjectiveType.bombUsed:
+        return levelBombsUsed >= obj.target;
+      case ObjectiveType.multiplierExplosion:
+        return levelMultiplierExplosions >= obj.target;
+    }
+  }
+
+  void _checkLevelObjectives() {
+    final level = widget.level;
+    if (level == null || isLevelComplete || isLevelFailed) return;
+
+    final allMet = level.objectives.every(_isObjectiveMet);
+
+    if (allMet) {
+      final stars = _calculateStars(level);
+      setState(() {
+        isLevelComplete = true;
+        _levelCompletedStars = stars;
+      });
+      widget.onLevelComplete?.call(level.id, stars);
+      return;
+    }
+
+    // Check move limit failure
+    final moveLimit = level.constraints?.moveLimit;
+    if (moveLimit != null && levelMoveCount >= moveLimit) {
+      setState(() => isLevelFailed = true);
+    }
+  }
+
+  int _calculateStars(LevelData level) {
+    final moveLimit = level.constraints?.moveLimit;
+    int stars = 1;
+    if (moveLimit != null) {
+      final usedRatio = levelMoveCount / moveLimit;
+      if (usedRatio <= 0.75) stars++;
+      if (usedRatio <= 0.60 && energy >= 60) stars++;
+    } else {
+      if (energy >= 60) stars++;
+      if (energy >= 80) stars++;
+    }
+    return stars.clamp(1, 3);
+  }
+
   void _checkRefill() {
     if (spawnSlots.every((tile) => tile == null)) {
       setState(() {
         spawnSlots = List.generate(3, (_) => _generateRandomTile());
+        if (widget.level != null) _applyLevelSpawnForces(widget.level!);
       });
     }
 
-    if (energy <= 0) {
+    if (energy <= 0 && !isLevelComplete) {
       HapticFeedback.vibrate();
-      setState(() => isGameOver = true);
+      if (widget.level != null) {
+        setState(() => isLevelFailed = true);
+      } else {
+        setState(() => isGameOver = true);
+      }
     }
+  }
+
+  void _showMenuDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return GlassCard(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'OYUN MENÜSÜ',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.0,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: const Icon(Icons.home_rounded, color: Color(0xFF00E676)),
+                title: const Text('Ana Menüye Dön', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(context);
+                  widget.onBackToMenu();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.replay_rounded, color: Color(0xFF6AD4FF)),
+                title: const Text('Yeniden Başlat', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _initGame();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.help_outline_rounded, color: Color(0xFFFFD166)),
+                title: const Text('Nasıl Oynanır', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showHowToPlay(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showHowToPlay(BuildContext context) {
