@@ -8,6 +8,8 @@ class CornerActionButton extends StatelessWidget {
   final int? badgeCount;
   final Color badgeColor;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final String? tooltip;
 
   const CornerActionButton({
     super.key,
@@ -18,12 +20,57 @@ class CornerActionButton extends StatelessWidget {
     this.badgeCount,
     required this.badgeColor,
     this.onTap,
+    this.onLongPress,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
     const double buttonSize = 70.0;
     const double badgeSize = 20.0;
+
+    Widget buttonWidget = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(buttonSize / 2),
+        onTap: onTap,
+        onLongPress: onLongPress,
+        child: Container(
+          width: buttonSize,
+          height: buttonSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withValues(alpha: 0.24),
+            border: Border.all(
+              color: iconColor.withValues(alpha: 0.4),
+              width: 1.2,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: glowColor.withValues(alpha: 0.32),
+                blurRadius: 22,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              color: iconColor,
+              size: 30,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (tooltip != null) {
+      buttonWidget = Tooltip(
+        message: tooltip!,
+        preferBelow: false,
+        child: buttonWidget,
+      );
+    }
 
     return SizedBox(
       width: buttonSize,
@@ -33,39 +80,7 @@ class CornerActionButton extends StatelessWidget {
           Stack(
             clipBehavior: Clip.none,
             children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(buttonSize / 2),
-                  onTap: onTap,
-                  child: Container(
-                    width: buttonSize,
-                    height: buttonSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.24),
-                      border: Border.all(
-                        color: iconColor.withValues(alpha: 0.4),
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: glowColor.withValues(alpha: 0.32),
-                          blurRadius: 22,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: Icon(
-                        icon,
-                        color: iconColor,
-                        size: 30,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              buttonWidget,
               if (badgeCount != null)
                 Positioned(
                   right: -4,

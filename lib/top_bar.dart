@@ -32,14 +32,17 @@ class GlassCard extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: br,
         gradient: LinearGradient(
-          colors: [Colors.white.withValues(alpha: 0.04), Colors.white.withValues(alpha: 0.01)],
+          colors: [
+            const Color(0xFF13203E).withValues(alpha: 0.75),
+            const Color(0xFF0A1226).withValues(alpha: 0.60),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.0),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.22), blurRadius: 18, offset: const Offset(0, 8)),
-          BoxShadow(color: Colors.white.withValues(alpha: 0.02), blurRadius: 2, offset: const Offset(0, -1)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.40), blurRadius: 20, offset: const Offset(0, 8)),
+          BoxShadow(color: Colors.white.withValues(alpha: 0.05), blurRadius: 2, offset: const Offset(0, -1)),
         ],
       ),
       child: Center(child: child),
@@ -71,6 +74,7 @@ class GlassCard extends StatelessWidget {
 // PlusterTopBar widget
 class PlusterTopBar extends StatelessWidget {
   final int score;
+  final int highScore;
   final VoidCallback? onMenu;
   final VoidCallback? onHelp;
   final double horizontalPadding;
@@ -78,6 +82,7 @@ class PlusterTopBar extends StatelessWidget {
   const PlusterTopBar({
     super.key,
     required this.score,
+    this.highScore = 0,
     this.onMenu,
     this.onHelp,
     this.horizontalPadding = 16.0,
@@ -91,6 +96,7 @@ class PlusterTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final double menuSize = 48;
     final double badgeSize = 40;
+    final bool isNewRecord = score > 0 && score >= highScore;
     final TextStyle titleStyle = const TextStyle(
       color: Colors.white,
       fontSize: 34,
@@ -137,13 +143,13 @@ class PlusterTopBar extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   child: Text('PLUSTER', style: titleStyle, textAlign: TextAlign.center),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 SizedBox(
-                  height: 22,
+                  height: 18,
                   child: CustomPaint(
                     painter: _SineWavePainter(
-                      color: const Color(0xFFAEEEF6),
-                      glowColor: const Color(0xFFAEEEF6).withValues(alpha: 0.28),
+                      color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFAEEEF6),
+                      glowColor: isNewRecord ? const Color(0xFFFFD166).withValues(alpha: 0.4) : const Color(0xFFAEEEF6).withValues(alpha: 0.28),
                       dotColor: const Color(0xFFFFFFFF),
                     ),
                     child: Container(),
@@ -164,15 +170,15 @@ class PlusterTopBar extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'SKOR',
+                      isNewRecord ? '🏆 YENİ REKOR!' : 'REKOR: ${_formatScore(highScore)}',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 11,
-                        letterSpacing: 1.6,
-                        fontWeight: FontWeight.w600,
+                        color: isNewRecord ? const Color(0xFFFFD166) : Colors.white.withValues(alpha: 0.7),
+                        fontSize: 10,
+                        letterSpacing: 1.1,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       _formatScore(score),
                       style: const TextStyle(
@@ -197,14 +203,9 @@ class PlusterTopBar extends StatelessWidget {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFFAEEEF6).withValues(alpha: 0.18),
+                            color: isNewRecord ? const Color(0xFFFFD166).withValues(alpha: 0.3) : const Color(0xFFAEEEF6).withValues(alpha: 0.18),
                             blurRadius: 14,
                             spreadRadius: 2,
-                          ),
-                          BoxShadow(
-                            color: const Color(0xFFCFFAE6).withValues(alpha: 0.08),
-                            blurRadius: 6,
-                            spreadRadius: 0,
                           ),
                         ],
                       ),
@@ -214,21 +215,24 @@ class PlusterTopBar extends StatelessWidget {
                       height: badgeSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          begin: Alignment(-0.6, -0.6),
-                          end: Alignment(0.8, 0.8),
-                          colors: [
-                            Color(0xFF062E1F),
-                            Color(0xFF0D2E18),
-                          ],
+                        gradient: LinearGradient(
+                          begin: const Alignment(-0.6, -0.6),
+                          end: const Alignment(0.8, 0.8),
+                          colors: isNewRecord
+                              ? [const Color(0xFF4A3800), const Color(0xFF8C6B00)]
+                              : [const Color(0xFF062E1F), const Color(0xFF0D2E18)],
                         ),
-                        border: Border.all(color: const Color(0xFFAEEEF6).withValues(alpha: 0.18), width: 1.0),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4)),
-                        ],
+                        border: Border.all(
+                          color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFAEEEF6).withValues(alpha: 0.18),
+                          width: 1.0,
+                        ),
                       ),
                       child: Center(
-                        child: Icon(Icons.eco, color: const Color(0xFFCFFAE6), size: 18),
+                        child: Icon(
+                          isNewRecord ? Icons.emoji_events : Icons.eco,
+                          color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFCFFAE6),
+                          size: 18,
+                        ),
                       ),
                     ),
                   ],

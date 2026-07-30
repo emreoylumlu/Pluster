@@ -99,15 +99,16 @@ class DragDropBar extends StatelessWidget {
     required this.onDragCompleted,
   });
 
-  Color _discColor(int value, {bool isBomb = false}) {
-    if (isBomb) return const Color(0xFFB00020);
-    switch (value) {
+  Color _discColor(TileData tile) {
+    if (tile.type == TileType.bomb) return const Color(0xFFFF5252);
+    if (tile.type == TileType.multiplier) return const Color(0xFFFFD166);
+    switch (tile.value) {
       case 1:
-        return const Color(0xFF72D5FF);
+        return const Color(0xFF4FC3F7);
       case 2:
-        return const Color(0xFF5DF1C8);
+        return const Color(0xFFAB6FDB);
       case 3:
-        return const Color(0xFFB68CFF);
+        return const Color(0xFFFF9E5E);
       default:
         return Colors.white24;
     }
@@ -149,33 +150,33 @@ class DragDropBar extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: spawnSlots.map((tile) {
                   if (tile == null) {
-                    return SizedBox(width: discSize, height: discSize);
-                  }
-                  return Draggable<TileData>(
-                    data: tile,
-                    maxSimultaneousDrags: isDisabled ? 0 : 1,
-                    feedback: NumberDisc(
-                      number: tile.value,
-                      color: _discColor(tile.value, isBomb: tile.type == TileType.bomb),
-                      isBomb: tile.type == TileType.bomb,
-                      size: discSize,
-                    ),
-                    childWhenDragging: Opacity(
-                      opacity: 0.3,
-                      child: NumberDisc(
-                        number: tile.value,
-                        color: _discColor(tile.value, isBomb: tile.type == TileType.bomb),
-                        isBomb: tile.type == TileType.bomb,
-                        size: discSize,
+                    return Container(
+                      width: discSize,
+                      height: discSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.black.withValues(alpha: 0.25),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
                       ),
-                    ),
-                    onDragCompleted: () => onDragCompleted(tile),
-                    child: NumberDisc(
-                      number: tile.value,
-                      color: _discColor(tile.value, isBomb: tile.type == TileType.bomb),
-                      isBomb: tile.type == TileType.bomb,
-                      size: discSize,
-                    ),
+                      child: Center(
+                        child: Icon(
+                          Icons.hourglass_empty_rounded,
+                          size: discSize * 0.32,
+                          color: Colors.white.withValues(alpha: 0.15),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final Color color = _discColor(tile);
+
+                  return _AnimatedDiscSlot(
+                    key: ValueKey<TileData>(tile),
+                    tile: tile,
+                    discSize: discSize,
+                    isDisabled: isDisabled,
+                    color: color,
+                    onDragCompleted: onDragCompleted,
                   );
                 }).toList(),
               ),
@@ -183,6 +184,111 @@ class DragDropBar extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _AnimatedDiscSlot extends StatefulWidget {
+  final TileData tile;
+  final double discSize;
+  final bool isDisabled;
+  final Color color;
+  final ValueChanged<TileData> onDragCompleted;
+
+  const _AnimatedDiscSlot({
+    super.key,
+    required this.tile,
+    required this.discSize,
+    required this.isDisabled,
+    required this.color,
+    required this.onDragCompleted,
+  });
+
+  @override
+  State<_AnimatedDiscSlot> createState() => _AnimatedDiscSlotState();
+}
+
+class _AnimatedDiscSlotState extends State<_AnimatedDiscSlot> with SingleTickerProviderStateMixin {
+  late AnimationController _flipController;
+  late Animation<double> _flipAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _flipController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _flipAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _flipController, curve: Curves.easeOutBack),
+    );
+    _flipController.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedDiscSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tile != widget.tile) {
+      _flipController.forward(from: 0.0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _flipController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isBomb = widget.tile.type == TileType.bomb;
+    final bool isMultiplier = widget.tile.type == TileType.multiplier;
+
+    return AnimatedBuilder(
+      animation: _flipAnimation,
+      builder: (context, child) {
+        final double angle = (1.0 - _flipAnimation.value) * 3.14159;
+        final double scale = 0.7 + (_flipAnimation.value * 0.3);
+        return Transform.scale(
+          scale: scale,
+          child: Transform(
+            transform: Matrix4.identity()
+              ..setEntry(3, 2, 0.002)
+              ..rotateY(angle),
+            alignment: Alignment.center,
+            child: child,
+          ),
+        );
+      },
+      child: Draggable<TileData>(
+        data: widget.tile,
+        maxSimultaneousDrags: widget.isDisabled ? 0 : 1,
+        feedback: Material(
+          color: Colors.transparent,
+          child: NumberDisc(
+            number: widget.tile.value,
+            color: widget.color,
+            isBomb: isBomb,
+            size: widget.discSize * 1.08,
+          ),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.25,
+          child: NumberDisc(
+            number: widget.tile.value,
+            color: widget.color,
+            isBomb: isBomb,
+            size: widget.discSize,
+          ),
+        ),
+        onDragCompleted: () => widget.onDragCompleted(widget.tile),
+        child: NumberDisc(
+          number: isMultiplier ? 2 : widget.tile.value,
+          color: widget.color,
+          isBomb: isBomb,
+          size: widget.discSize,
+        ),
+      ),
     );
   }
 }

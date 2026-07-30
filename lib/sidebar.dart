@@ -74,10 +74,16 @@ class SidebarStatItem extends StatelessWidget {
 
 class Sidebar extends StatelessWidget {
   final double width;
+  final int explosionsCount;
+  final int maxCombo;
+  final int highScore;
 
   const Sidebar({
     super.key,
     this.width = 100,
+    this.explosionsCount = 0,
+    this.maxCombo = 0,
+    this.highScore = 0,
   });
 
   @override
@@ -94,8 +100,8 @@ class Sidebar extends StatelessWidget {
                 child: SidebarStatItem(
                   icon: Icons.auto_awesome,
                   iconColor: const Color(0xFF7FFFD4),
-                  label: 'PATLAMALAR',
-                  value: '23',
+                  label: 'PATLAMA',
+                  value: '$explosionsCount',
                 ),
               ),
             ),
@@ -106,7 +112,7 @@ class Sidebar extends StatelessWidget {
                   icon: Icons.star_border,
                   iconColor: const Color(0xFFB794F6),
                   label: 'EN YÜKSEK\nKOMBO',
-                  value: '12',
+                  value: 'x$maxCombo',
                 ),
               ),
             ),
@@ -114,10 +120,10 @@ class Sidebar extends StatelessWidget {
             Expanded(
               child: Center(
                 child: SidebarStatItem(
-                  icon: Icons.eco,
-                  iconColor: const Color(0xFF7FFFD4),
-                  label: 'ENERJİ\nKAZANCI',
-                  value: '+320',
+                  icon: Icons.emoji_events,
+                  iconColor: const Color(0xFFFFD166),
+                  label: 'EN YÜKSEK\nREKOR',
+                  value: '$highScore',
                 ),
               ),
             ),

@@ -36,13 +36,18 @@ class PulseGridScreen extends StatefulWidget {
   State<PulseGridScreen> createState() => _PulseGridScreenState();
 }
 
-class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProviderStateMixin {
+class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderStateMixin {
   late List<List<CellData>> grid;
   late List<TileData?> spawnSlots;
 
   bool isProcessingPulse = false;
   bool isGameOver = false;
   int score = 0;
+  int highScore = 0;
+  int explosionsCount = 0;
+  int maxCombo = 0;
+  int overloadCharges = 2;
+  int refreshCharges = 1;
 
   double energy = 100.0;
   String? energyFloatingText;
@@ -53,7 +58,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
   String? activeComboTitle;
   bool isScorePulsing = false;
 
+  String? cellInfoBannerText;
+  int cellInfoBannerKey = 0;
+
+  String? activeVfxType;
+  int activeVfxKey = 0;
+
+  bool unlockedEmpToastShown = false;
+  bool unlockedDiagonalToastShown = false;
+  bool unlockedLockedToastShown = false;
+
   late AnimationController _dangerPulseController;
+  late AnimationController _shakeController;
 
   @override
   void initState() {
@@ -63,13 +79,79 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
 
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 240),
+    );
+
     _initGame();
   }
 
   @override
   void dispose() {
     _dangerPulseController.dispose();
+    _shakeController.dispose();
     super.dispose();
+  }
+
+  void _triggerScreenShake() {
+    _shakeController.forward(from: 0.0);
+  }
+
+  void _updateScore(int delta) {
+    score += delta;
+    if (score > highScore) {
+      highScore = score;
+    }
+    _checkScoreUnlocks();
+  }
+
+  void _checkScoreUnlocks() {
+    if (score >= 300 && !unlockedEmpToastShown) {
+      unlockedEmpToastShown = true;
+      _showEnergyFloatingText('🔓 EMP KİLİDİ AÇILDI!');
+    } else if (score >= 600 && !unlockedDiagonalToastShown) {
+      unlockedDiagonalToastShown = true;
+      _showEnergyFloatingText('🔓 ÇAPRAZ PATLAMA AÇILDI!');
+    } else if (score >= 1000 && !unlockedLockedToastShown) {
+      unlockedLockedToastShown = true;
+      _showEnergyFloatingText('🔓 KİLİTLİ HÜCRELER AÇILDI!');
+    }
+  }
+
+  void _onCellTapped(int r, int c) {
+    CellData cell = grid[r][c];
+    String info = '';
+
+    if (cell.specialType == CellSpecialType.emp) {
+      info = '🧲 EMP HÜCRESİ: Patladığında tüm satır ve sütunu anında temizler!';
+    } else if (cell.specialType == CellSpecialType.diagonal) {
+      info = '⭐ ÇAPRAZ PATLAMA: Patladığında dalga sadece çapraz komşulara yayılır!';
+    } else if (cell.specialType == CellSpecialType.doubleEnergy) {
+      info = '⚡ 2x ENERJİ: Patladığında 2 kat daha fazla şebeke enerjisi kazandırır!';
+    } else if (cell.specialType == CellSpecialType.doubleScore) {
+      info = '✨ 2x SKOR: Patladığında 2 kat puan çarpanı verir!';
+    } else if (cell.specialType == CellSpecialType.locked) {
+      info = '🔒 KİLİTLİ ENGEL: Sürüklenemez. Etrafındaki patlama dalgasıyla kırılır!';
+    } else if (cell.isMultiplier) {
+      info = '✖️ ÇARPAN TAŞI: Üzerine koyulduğu sayıyı katlar!';
+    } else if (cell.value > 0) {
+      info = '🔢 SAYI TAŞI (Değer: ${cell.value}): Aynı hücreye taş koyarak 8\'e ulaştır ve patlat!';
+    } else {
+      info = '🎯 BOŞ HÜCRE: Taşlarını buraya sürükleyip bırakabilirsin.';
+    }
+
+    HapticFeedback.selectionClick();
+    setState(() {
+      cellInfoBannerText = info;
+      cellInfoBannerKey++;
+    });
+
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) {
+        setState(() => cellInfoBannerText = null);
+      }
+    });
   }
 
   void _initGame() {
@@ -79,6 +161,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
       spawnSlots = List.generate(3, (_) => _generateRandomTile());
       score = 0;
       energy = 100.0;
+      explosionsCount = 0;
+      maxCombo = 0;
+      overloadCharges = 2;
+      refreshCharges = 1;
+      unlockedEmpToastShown = false;
+      unlockedDiagonalToastShown = false;
+      unlockedLockedToastShown = false;
+      cellInfoBannerText = null;
       isGameOver = false;
       isProcessingPulse = false;
       activeComboTitle = null;
@@ -90,15 +180,24 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
     Random rng = Random();
     List<int> indices = List.generate(16, (i) => i)..shuffle();
 
+    // Kademeli Özel Hücre Açılımı (Progressive Unlocking)
+    // Başlangıçta daha sade (doubleEnergy & doubleScore), skor arttıkça karmaşıklaşır
     List<CellSpecialType> specials = [
-      CellSpecialType.locked,
-      CellSpecialType.emp,
-      CellSpecialType.diagonal,
       CellSpecialType.doubleEnergy,
       CellSpecialType.doubleScore,
     ];
 
-    for (int i = 0; i < specials.length; i++) {
+    if (score >= 300) {
+      specials.add(CellSpecialType.emp);
+    }
+    if (score >= 600) {
+      specials.add(CellSpecialType.diagonal);
+    }
+    if (score >= 1000) {
+      specials.add(CellSpecialType.locked);
+    }
+
+    for (int i = 0; i < specials.length && i < indices.length; i++) {
       int idx = indices[i];
       int r = idx ~/ 4;
       int c = idx % 4;
@@ -181,7 +280,16 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
           ),
           Positioned.fill(
             child: Container(
-              color: Colors.black.withValues(alpha: 0.40),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF091024).withValues(alpha: 0.76),
+                    const Color(0xFF060914).withValues(alpha: 0.88),
+                  ],
+                ),
+              ),
             ),
           ),
           SafeArea(
@@ -191,13 +299,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
                 children: [
                   PlusterTopBar(
                     score: score,
+                    highScore: highScore,
                     onMenu: () {},
                     onHelp: () => _showHowToPlay(context),
                   ),
                   const SizedBox(height: 16),
                   EnergySection(
                     energyPercent: energy / 100.0,
-                    combo: 7,
+                    combo: maxCombo > 0 ? maxCombo : 1,
                     isLowEnergy: isLowEnergy,
                     dangerPulse: _dangerPulseController,
                     energyFloatingText: energyFloatingText,
@@ -212,7 +321,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
                       children: [
                         SizedBox(
                           width: sidebarWidth,
-                          child: Sidebar(width: sidebarWidth),
+                          child: Sidebar(
+                            width: sidebarWidth,
+                            explosionsCount: explosionsCount,
+                            maxCombo: maxCombo,
+                            highScore: highScore,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -231,37 +345,62 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
           if (isGameOver)
             Positioned.fill(
               child: Container(
-                color: Colors.black.withValues(alpha: 0.6),
+                color: Colors.black.withValues(alpha: 0.75),
                 child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: Colors.redAccent),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 24),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF162544),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: Colors.redAccent.withValues(alpha: 0.8), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(color: Colors.redAccent.withValues(alpha: 0.3), blurRadius: 30, spreadRadius: 2),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'OYUN BİTTİ',
+                          style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: 2.0),
                         ),
-                        child: Column(
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            const Text('OYUN BİTTİ', style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w900)),
-                            const SizedBox(height: 12),
-                            Text('Skor: $score', style: const TextStyle(color: Colors.white70, fontSize: 18)),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () {
-                                _initGame();
-                              },
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 18.0, vertical: 12.0),
-                                child: Text('YENİDEN BAŞLAT'),
-                              ),
+                            Column(
+                              children: [
+                                Text('SKOR', style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                Text('$score', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+                              ],
+                            ),
+                            Container(width: 1, height: 32, color: Colors.white12),
+                            Column(
+                              children: [
+                                Text('EN YÜKSEK', style: TextStyle(color: const Color(0xFFFFD166), fontSize: 11, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                Text('$highScore', style: const TextStyle(color: Color(0xFFFFD166), fontSize: 22, fontWeight: FontWeight.w900)),
+                              ],
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: _initGame,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF00BFA5),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 8,
+                          ),
+                          icon: const Icon(Icons.replay, size: 22),
+                          label: const Text('ANINDA YENİDEN BAŞLAT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -287,9 +426,19 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
   ),
 );
         return Center(
-          child: SizedBox(
-            width: adjustedTileSize * 4 + spacing * 3,
-            child: _buildGridContainer(context, adjustedTileSize, spacing),
+          child: AnimatedBuilder(
+            animation: _shakeController,
+            builder: (context, child) {
+              final double dx = sin(_shakeController.value * pi * 5) * 8.0 * (1.0 - _shakeController.value);
+              return Transform.translate(
+                offset: Offset(dx, 0),
+                child: child,
+              );
+            },
+            child: SizedBox(
+              width: adjustedTileSize * 4 + spacing * 3,
+              child: _buildGridContainer(context, adjustedTileSize, spacing),
+            ),
           ),
         );
       },
@@ -323,14 +472,23 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
     return null;
   }
 
+  Color? _badgeColorForCell(CellData cell) {
+    if (cell.specialType == CellSpecialType.emp) return const Color(0xFFB388FF);
+    if (cell.specialType == CellSpecialType.diagonal) return const Color(0xFF18FFFF);
+    if (cell.specialType == CellSpecialType.doubleEnergy) return const Color(0xFF00E676);
+    if (cell.specialType == CellSpecialType.doubleScore) return const Color(0xFFFFD54F);
+    if (cell.isMultiplier) return const Color(0xFFFFD166);
+    return null;
+  }
+
   Widget _buildGridContainer(BuildContext context, double tileSize, double spacing) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: const Color(0xFF091226).withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: 1.2),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 30, offset: const Offset(0, 16)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.50), blurRadius: 36, offset: const Offset(0, 16)),
         ],
       ),
       child: Padding(
@@ -356,31 +514,94 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
                   return SizedBox(
                     width: tileSize,
                     height: tileSize,
-                    child: DragTarget<TileData>(
-                      onWillAcceptWithDetails: (details) {
-                        if (isProcessingPulse || isGameOver) return false;
-                        if (cell.specialType == CellSpecialType.locked) return false;
+                    child: GestureDetector(
+                      onTap: () => _onCellTapped(r, c),
+                      child: DragTarget<TileData>(
+                        onWillAcceptWithDetails: (details) {
+                          if (isProcessingPulse || isGameOver) return false;
+                          if (cell.specialType == CellSpecialType.locked) return false;
 
-                        TileData tile = details.data;
-                        if (tile.type == TileType.bomb) return true;
-                        return (cell.value + tile.value) <= 8;
-                      },
-                      onAcceptWithDetails: (details) {
-                        _handleTilePlacement(r, c, details.data);
-                      },
-                      builder: (context, candidateData, rejectedData) {
-                        return GameTile(
-                          number: cell.value > 0 ? cell.value : null,
-                          color: _tileColorForCell(cell),
-                          badgeIcon: _badgeIconForCell(cell),
-                          isLocked: cell.specialType == CellSpecialType.locked,
-                          size: tileSize,
-                        );
-                      },
+                          TileData tile = details.data;
+                          if (tile.type == TileType.bomb) return true;
+                          return (cell.value + tile.value) <= 8;
+                        },
+                        onAcceptWithDetails: (details) {
+                          _handleTilePlacement(r, c, details.data);
+                        },
+                        builder: (context, candidateData, rejectedData) {
+                          final bool isHovered = candidateData.isNotEmpty;
+                          return Stack(
+                            children: [
+                              AnimatedGameTile(
+                                key: ValueKey<String>('cell_${r}_${c}_${cell.value}_${cell.specialType}'),
+                                number: cell.value > 0 ? cell.value : null,
+                                color: _tileColorForCell(cell),
+                                badgeIcon: _badgeIconForCell(cell),
+                                badgeColor: _badgeColorForCell(cell),
+                                isLocked: cell.specialType == CellSpecialType.locked,
+                                size: tileSize,
+                              ),
+                              if (isHovered)
+                                Container(
+                                  width: tileSize,
+                                  height: tileSize,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: const Color(0xFF00E676), width: 2.5),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF00E676).withValues(alpha: 0.5),
+                                        blurRadius: 16,
+                                        spreadRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   );
                 },
               ),
+              if (cellInfoBannerText != null)
+                Positioned(
+                  top: 8,
+                  left: 8,
+                  right: 8,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F1B35).withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF7FFFD4), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(color: const Color(0xFF7FFFD4).withValues(alpha: 0.3), blurRadius: 18),
+                      ],
+                    ),
+                    child: Text(
+                      cellInfoBannerText!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ),
+              if (activeVfxType != null)
+                Positioned.fill(
+                  child: _BoardVfxOverlay(
+                    key: ValueKey<int>(activeVfxKey),
+                    type: activeVfxType!,
+                    onFinished: () {
+                      if (mounted) setState(() => activeVfxType = null);
+                    },
+                  ),
+                ),
               if (activeComboTitle != null)
                 Center(
                   child: Container(
@@ -411,6 +632,44 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
     );
   }
 
+  void _useOverload() {
+    if (overloadCharges <= 0 || isProcessingPulse || isGameOver) return;
+    HapticFeedback.heavyImpact();
+    _triggerScreenShake();
+    setState(() {
+      activeVfxType = 'overload';
+      activeVfxKey++;
+      overloadCharges--;
+      List<_Point> occupied = [];
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].value > 0 && grid[r][c].specialType != CellSpecialType.locked) {
+            occupied.add(_Point(r, c));
+          }
+        }
+      }
+      if (occupied.isNotEmpty) {
+        _Point pt = occupied[Random().nextInt(occupied.length)];
+        grid[pt.r][pt.c].value = 0;
+        grid[pt.r][pt.c].isMultiplier = false;
+        grid[pt.r][pt.c].specialType = CellSpecialType.none;
+      }
+      energy = (energy + 20.0).clamp(0.0, 100.0);
+    });
+    _showEnergyFloatingText('💥 AŞIRI YÜK!');
+    _triggerEnergyPulse(true);
+  }
+
+  void _useRefresh() {
+    if (refreshCharges <= 0 || isProcessingPulse || isGameOver) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      refreshCharges--;
+      spawnSlots = List.generate(3, (_) => _generateRandomTile());
+    });
+    _showEnergyFloatingText('🔄 YENİLENDİ');
+  }
+
   Widget _buildBottomControls(double tileSize) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -421,11 +680,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
           iconColor: const Color(0xFFFF6A45),
           glowColor: const Color(0xFFFF3E3E),
           label: 'AŞIRI YÜK',
-          badgeCount: 2,
+          badgeCount: overloadCharges,
           badgeColor: const Color(0xFFFF4A4A),
-          onTap: () {
-            // Aksiyon için dokunma işlevi
-          },
+          onTap: _useOverload,
+          onLongPress: () => _showEnergyFloatingText('💥 Aşırı Yük: 1 hücreyi yok edip +20⚡ verir!'),
+          tooltip: '💥 AŞIRI YÜK: Tahtadan 1 dolu hücreyi patlatıp +20⚡ kazandırır.',
         ),
         Expanded(
           child: Padding(
@@ -449,14 +708,21 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
           iconColor: const Color(0xFF6AD4FF),
           glowColor: const Color(0xFF3EB8FF),
           label: 'YENİLE',
-          badgeCount: 1,
+          badgeCount: refreshCharges,
           badgeColor: const Color(0xFF3EB8FF),
-          onTap: () {
-            // Aksiyon için dokunma işlevi
-          },
+          onTap: _useRefresh,
+          onLongPress: () => _showEnergyFloatingText('🔄 Yenile: 3 taşı yeni taşlarla değiştirir!'),
+          tooltip: '🔄 YENİLE: Gelen 3 sürükle-bırak taşını yeniler.',
         ),
       ],
     );
+  }
+
+  double _getTileEnergyCost(TileData tile) {
+    if (tile.type == TileType.multiplier) {
+      return 15.0;
+    }
+    return (tile.value * 6.0);
   }
 
   Future<void> _handleTilePlacement(int r, int c, TileData tile) async {
@@ -464,12 +730,16 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
 
     if (tile.type == TileType.bomb) {
       HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+      int clearedCount = _clearCellAndNeighbors(r, c);
+      double energyGained = 15.0 + (clearedCount * 10.0);
       setState(() {
-        _clearCellAndNeighbors(r, c);
-        score += 50;
-        energy = (energy + 25.0).clamp(0.0, 100.0);
+        activeVfxType = 'bomb';
+        activeVfxKey++;
+        _updateScore(50 + (clearedCount * 25));
+        energy = (energy + energyGained).clamp(0.0, 100.0);
       });
-      _showEnergyFloatingText('+25⚡');
+      _showEnergyFloatingText('+${energyGained.toInt()}⚡');
       _triggerEnergyPulse(true);
       _triggerScorePulse();
       return;
@@ -486,11 +756,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
       if (tile.type == TileType.multiplier) {
         grid[r][c].isMultiplier = true;
       }
-      score += tile.value * 10;
+      _updateScore(tile.value * 10);
 
       if (!willExplode) {
-        energy = (energy - 18.0).clamp(0.0, 100.0);
-        _showEnergyFloatingText('-18⚡');
+        double cost = _getTileEnergyCost(tile);
+        energy = (energy - cost).clamp(0.0, 100.0);
+        _showEnergyFloatingText('-${cost.toInt()}⚡');
         _triggerEnergyPulse(false);
       }
     });
@@ -507,7 +778,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
     }
   }
 
-  void _clearCellAndNeighbors(int r, int c) {
+  int _clearCellAndNeighbors(int r, int c) {
+    int clearedCount = 0;
+    if (grid[r][c].value > 0) clearedCount++;
     grid[r][c].value = 0;
     grid[r][c].isMultiplier = false;
     grid[r][c].specialType = CellSpecialType.none;
@@ -521,11 +794,13 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
 
     for (var n in neighbors) {
       if (n.r >= 0 && n.r < 4 && n.c >= 0 && n.c < 4) {
+        if (grid[n.r][n.c].value > 0) clearedCount++;
         grid[n.r][n.c].value = 0;
         grid[n.r][n.c].isMultiplier = false;
         grid[n.r][n.c].specialType = CellSpecialType.none;
       }
     }
+    return clearedCount;
   }
 
   Future<void> _processPulseQueue(int startR, int startC) async {
@@ -572,7 +847,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
       }
 
       // Enerji Kazanımı
-      double energyGained = 12.0 * comboCount;
+      double energyGained = 20.0 * comboCount;
       if (currentSpecial == CellSpecialType.doubleEnergy) {
         energyGained *= 2;
       }
@@ -601,12 +876,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
 
       await Future.delayed(const Duration(milliseconds: 280));
 
+      _triggerScreenShake();
+      explosionsCount++;
+      if (comboCount > maxCombo) {
+        maxCombo = comboCount;
+      }
+
       setState(() {
         grid[r][c].value = 0;
         grid[r][c].isMultiplier = false;
         grid[r][c].specialType = CellSpecialType.none;
         grid[r][c].floatingText = null;
-        score += basePoints;
+        _updateScore(basePoints);
       });
 
       _triggerScorePulse();
@@ -677,54 +958,105 @@ class _PulseGridScreenState extends State<PulseGridScreen> with SingleTickerProv
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: GlassCard(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return DefaultTabController(
+          length: 3,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            child: GlassCard(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+              padding: const EdgeInsets.all(20),
+              child: SizedBox(
+                height: MediaQuery.of(context).size.height * 0.65,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Nasıl Oynanır?',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Pluster Kılavuzu',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const TabBar(
+                        indicatorColor: Color(0xFF7FFFD4),
+                        labelColor: Color(0xFF7FFFD4),
+                        unselectedLabelColor: Colors.white60,
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        tabs: [
+                          Tab(text: '🕹️ KURAL'),
+                          Tab(text: '🔮 HÜCRE'),
+                          Tab(text: '⚡ GÜÇ'),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: TabBarView(
+                        children: [
+                          // Tab 1: Rules
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                _buildHowToPlayRow(Icons.touch_app_rounded, 'Sayı disklerini 4x4 ızgaraya sürükleyip bırak.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.calculate_rounded, 'Aynı hücreye koyulan sayılar toplanır (Maks: 8).'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.bolt_rounded, '8\'e ulaşınca hücre patlar ve şebeke enerjisi kazandırır.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.battery_alert_rounded, 'Her normal koymada enerji tüketilir. Enerji biterse oyun biter!'),
+                              ],
+                            ),
+                          ),
+                          // Tab 2: Special Cells
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                _buildHowToPlayRow(Icons.bolt_rounded, '🧲 EMP: Patladığında tüm satır ve sütunu temizler.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.star_border_rounded, '⭐ ÇAPRAZ: Dalga sadece çaprazındaki komşulara yayılır.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.eco_rounded, '⚡ 2x ENERJİ: Patlamada 2 kat şebeke enerjisi kazandırır.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.auto_awesome_rounded, '✨ 2x SKOR: Patlamada 2 kat puan çarpanı verir.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.lock_rounded, '🔒 KİLİTLİ: Yanındaki patlamalarla kırılır.'),
+                              ],
+                            ),
+                          ),
+                          // Tab 3: Power-ups
+                          SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                _buildHowToPlayRow(Icons.local_fire_department_rounded, '💥 AŞIRI YÜK: Tahtadaki rastgele 1 dolu hücreyi yok edip +20⚡ kazandırır.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.refresh_rounded, '🔄 YENİLE: Sürükle-bırak yuvasındaki 3 taşı yenileriyle değiştirir.'),
+                                const SizedBox(height: 12),
+                                _buildHowToPlayRow(Icons.touch_app_rounded, '💡 İPUCU: Tahtadaki herhangi bir hücreye dokunarak özelliğini görebilirsin.'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Alttaki sayı disklerini sürükleyip grid\'e bırak. Aynı hücredeki sayılar toplanır, 8\'e ulaşınca patlar ve komşu hücrelere yayılır.',
-                  style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.6),
-                ),
-                const SizedBox(height: 18),
-                _buildHowToPlayRow(Icons.lock, 'Kilitli hücreler patlama dalgasıyla açılır'),
-                const SizedBox(height: 12),
-                _buildHowToPlayRow(Icons.bolt_rounded, 'Patladığında tüm satır ve sütunu temizler'),
-                const SizedBox(height: 12),
-                _buildHowToPlayRow(Icons.close_rounded, 'Sadece çapraz komşulara yayılır'),
-                const SizedBox(height: 12),
-                _buildHowToPlayRow(Icons.eco, 'Patladığında 2 kat enerji kazandırır'),
-                const SizedBox(height: 12),
-                _buildHowToPlayRow(Icons.star_rounded, 'Patladığında 2 kat skor kazandırır'),
-                const SizedBox(height: 18),
-                const Text(
-                  'Her hamlede enerji azalır, patlamalarda geri kazanılır. Enerji biterse oyun sona erer.',
-                  style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.6),
-                ),
-                const SizedBox(height: 20),
-              ],
+              ),
             ),
           ),
         );
@@ -929,4 +1261,107 @@ class _Point {
   final int r;
   final int c;
   _Point(this.r, this.c);
+}
+
+class _BoardVfxOverlay extends StatefulWidget {
+  final String type;
+  final VoidCallback onFinished;
+
+  const _BoardVfxOverlay({
+    super.key,
+    required this.type,
+    required this.onFinished,
+  });
+
+  @override
+  State<_BoardVfxOverlay> createState() => _BoardVfxOverlayState();
+}
+
+class _BoardVfxOverlayState extends State<_BoardVfxOverlay> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 650),
+    )..forward().then((_) {
+        if (mounted) widget.onFinished();
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isBomb = widget.type == 'bomb';
+    final Color primaryColor = isBomb ? const Color(0xFFFF3D00) : const Color(0xFFB388FF);
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final double value = _controller.value;
+        final double opacity = (1.0 - value).clamp(0.0, 1.0);
+        final double radiusScale = 0.2 + (value * 1.8);
+
+        return IgnorePointer(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Stack(
+              children: [
+                // Screen Flash Overlay
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: primaryColor.withValues(alpha: (0.35 * opacity).clamp(0.0, 1.0)),
+                    ),
+                  ),
+                ),
+                // Shockwave Halka Ring
+                Center(
+                  child: Transform.scale(
+                    scale: radiusScale,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isBomb ? const Color(0xFFFF9100).withValues(alpha: opacity) : const Color(0xFFE040FB).withValues(alpha: opacity),
+                          width: 4,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: primaryColor.withValues(alpha: opacity * 0.8),
+                            blurRadius: 30,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // Icon Burst
+                Center(
+                  child: Opacity(
+                    opacity: opacity,
+                    child: Icon(
+                      isBomb ? Icons.local_fire_department : Icons.electric_bolt_rounded,
+                      size: 80 * (1.0 + value * 0.5),
+                      color: isBomb ? const Color(0xFFFFEA00) : const Color(0xFF7FFFD4),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
