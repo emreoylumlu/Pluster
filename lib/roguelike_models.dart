@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game_models.dart';
+import 'roguelike_modifier.dart';
 
 enum RoguelikeCardTier { tier1, tier2, tier3 }
 
@@ -39,7 +40,7 @@ class RoguelikeRunState {
 
   RoguelikeRunState({
     this.currentFloor = 1,
-    this.waveTargetScore = 500,
+    this.waveTargetScore = 1200,
     Set<TileType>? unlockedTileTypes,
     Set<CellSpecialType>? unlockedCellTypes,
     Set<String>? activePassives,
@@ -49,13 +50,35 @@ class RoguelikeRunState {
         activePassives = activePassives ?? {},
         selectedCardsHistory = selectedCardsHistory ?? [];
 
+  RoguelikeModifier get currentModifier => RoguelikeModifier.getForFloor(currentFloor);
+
   void advanceFloor() {
     currentFloor++;
-    // Exponential / Scaled Target Score for next Wave
-    waveTargetScore += (400 + currentFloor * 250);
+    waveTargetScore += (800 + currentFloor * 400);
   }
 
   bool hasPassive(String passiveId) => activePassives.contains(passiveId);
+
+  List<RoguelikeCard> getDraftOptions() {
+    List<RoguelikeCard> pool;
+    if (currentFloor <= 2) {
+      pool = kRoguelikeCards.where((c) => c.tier == RoguelikeCardTier.tier1).toList();
+    } else if (currentFloor <= 5) {
+      pool = kRoguelikeCards.where((c) => c.tier == RoguelikeCardTier.tier1 || c.tier == RoguelikeCardTier.tier2).toList();
+    } else {
+      pool = List.from(kRoguelikeCards);
+    }
+
+    pool = pool.where((card) => !selectedCardsHistory.any((selected) => selected.id == card.id)).toList();
+
+    if (pool.length < 3) {
+      pool = kRoguelikeCards.where((card) => !selectedCardsHistory.any((selected) => selected.id == card.id)).toList();
+    }
+    if (pool.isEmpty) pool = List.from(kRoguelikeCards);
+
+    pool.shuffle();
+    return pool.take(3).toList();
+  }
 
   void applyCard(RoguelikeCard card) {
     selectedCardsHistory.add(card);
@@ -168,8 +191,58 @@ const List<RoguelikeCard> kRoguelikeCards = [
     color: Color(0xFF7C4DFF),
     isPassive: true,
   ),
+  RoguelikeCard(
+    id: 'unlock_prism',
+    name: 'Joker Prizma (🌈)',
+    description: 'Havuza 🌈 Joker Prizma taşı eklenir. Koyulduğu hücreyi anında 8 yapıp patlatır.',
+    synergyNote: 'Zor patlayan yüksek taşları anında patlatmak için birebir.',
+    tier: RoguelikeCardTier.tier2,
+    icon: Icons.palette_rounded,
+    color: Color(0xFFFF4081),
+    unlocksTileType: TileType.prism,
+  ),
+  RoguelikeCard(
+    id: 'unlock_magnet',
+    name: 'Mıknatıs Taşı (🧲)',
+    description: 'Havuza 🧲 Mıknatıs taşı eklenir. Tahtadaki tüm aynı değerli taşları çeker.',
+    synergyNote: 'Dağınık tahtaları anında temizleyen devasa kombo tetikleyici.',
+    tier: RoguelikeCardTier.tier2,
+    icon: Icons.compress_rounded,
+    color: Color(0xFF00E676),
+    unlocksTileType: TileType.magnet,
+  ),
+  RoguelikeCard(
+    id: 'unlock_crystal',
+    name: 'Kristal Taşı (❄️)',
+    description: 'Havuza ❄️ Kristal taşı eklenir. Patladığında skoru 3 katına çıkarır.',
+    synergyNote: 'Skor odaklı oyunların en büyük skor katlayıcısı.',
+    tier: RoguelikeCardTier.tier2,
+    icon: Icons.ac_unit_rounded,
+    color: Color(0xFF00B0FF),
+    unlocksTileType: TileType.crystal,
+  ),
 
   // 🔴 KADEME 3 (Nadir)
+  RoguelikeCard(
+    id: 'unlock_contagion',
+    name: 'Veba Taşı (☣️)',
+    description: 'Havuza ☣️ Veba taşı eklenir. Komşu hücrelere konan taşlara +1 değer bonusu verir.',
+    synergyNote: 'Patlama hızını artıran yayılımcı build kartı.',
+    tier: RoguelikeCardTier.tier3,
+    icon: Icons.coronavirus_rounded,
+    color: Color(0xFF76FF03),
+    unlocksTileType: TileType.contagion,
+  ),
+  RoguelikeCard(
+    id: 'unlock_equalizer',
+    name: 'Eşitleyici Taş (⚖️)',
+    description: 'Havuza ⚖️ Eşitleyici taş eklenir. Komşuların değerini eşitleyip ortalar.',
+    synergyNote: 'Düzensiz sayıları düzenli kombolara dönüştürür.',
+    tier: RoguelikeCardTier.tier3,
+    icon: Icons.balance_rounded,
+    color: Color(0xFFFFAB40),
+    unlocksTileType: TileType.equalizer,
+  ),
   RoguelikeCard(
     id: 'unlock_emp',
     name: 'EMP Hücresi (🧲)',
@@ -179,6 +252,36 @@ const List<RoguelikeCard> kRoguelikeCards = [
     icon: Icons.filter_center_focus_rounded,
     color: Color(0xFF1DE9B6),
     unlocksCellType: CellSpecialType.emp,
+  ),
+  RoguelikeCard(
+    id: 'unlock_cell_vortex',
+    name: 'Vorteks Hücresi (🌀)',
+    description: 'Izgarada 🌀 Vorteks hücresi belirir. Patladığında komşu taşların değerlerini +1 yükseltir.',
+    synergyNote: 'Reaksiyon zincirlerini otomatik 8 yapıp patlatmaya yarar.',
+    tier: RoguelikeCardTier.tier2,
+    icon: Icons.cyclone_rounded,
+    color: Color(0xFF00E5FF),
+    unlocksCellType: CellSpecialType.vortex,
+  ),
+  RoguelikeCard(
+    id: 'unlock_cell_shield',
+    name: 'Pulsar Kalkanı (🛡️)',
+    description: 'Izgarada 🛡️ Pulsar Kalkanı hücresi belirir. Bu hücreye taş yerleştirmek 0 Enerji harcar.',
+    synergyNote: 'Enerji tasarrufu sağlayan güvenlik alanı oluşturur.',
+    tier: RoguelikeCardTier.tier2,
+    icon: Icons.shield_rounded,
+    color: Color(0xFF00E676),
+    unlocksCellType: CellSpecialType.shield,
+  ),
+  RoguelikeCard(
+    id: 'unlock_cell_crystal_vein',
+    name: 'Kristal Damarı (💎)',
+    description: 'Izgarada 💎 Kristal Damarı hücresi belirir. Patladığında +20 Pulsar Kristali verir.',
+    synergyNote: 'Ekonomi ve kristal biriktirme odaklı kart.',
+    tier: RoguelikeCardTier.tier3,
+    icon: Icons.diamond_rounded,
+    color: Color(0xFFFF4081),
+    unlocksCellType: CellSpecialType.crystalVein,
   ),
   RoguelikeCard(
     id: 'lock_breaker',

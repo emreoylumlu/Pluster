@@ -429,7 +429,7 @@ class _LevelCardState extends State<_LevelCard>
                     // Name (truncated)
                     if (isUnlocked)
                       Text(
-                        _shortName(widget.level.name),
+                        _shortName(widget.level.displayTitle),
                         textAlign: TextAlign.center,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

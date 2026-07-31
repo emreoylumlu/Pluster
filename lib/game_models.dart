@@ -1,6 +1,8 @@
-enum TileType { normal, bomb, multiplier }
+enum TileType { normal, bomb, multiplier, prism, magnet, crystal, contagion, equalizer }
 
-enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore }
+enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, crystalVein }
+
+enum GridLayoutType { classic4x4, cross, diamond }
 
 enum GameMode { endless, stage, roguelike }
 
@@ -42,28 +44,36 @@ class LevelConstraints {
 
 class LevelData {
   final int id;
-  final String name;
-  final String description;
-  final List<LevelObjective> objectives;
-  final LevelConstraints? constraints;
-  final bool isBoss;
   final int chapter;
+  final String title;
+  final String? name;
+  final String? description;
+  final bool isBoss;
+  final LevelObjective? objective;
+  final List<LevelObjective>? objectives;
+  final LevelConstraints? constraints;
   final bool forceBombAvailable;
   final bool forceMultiplierAvailable;
   final List<CellSpecialType> guaranteedCells;
 
   const LevelData({
     required this.id,
-    required this.name,
-    required this.description,
-    required this.objectives,
-    this.constraints,
-    this.isBoss = false,
     required this.chapter,
+    this.title = '',
+    this.name,
+    this.description,
+    this.isBoss = false,
+    this.objective,
+    this.objectives,
+    this.constraints,
     this.forceBombAvailable = false,
     this.forceMultiplierAvailable = false,
     this.guaranteedCells = const [],
   });
+
+  String get displayTitle => (title.isNotEmpty ? title : name) ?? 'Bölüm $id';
+  LevelObjective get displayObjective => objective ?? (objectives != null && objectives!.isNotEmpty ? objectives!.first : const LevelObjective(type: ObjectiveType.scoreTarget, target: 500, label: '500 Puan'));
+  List<LevelObjective> get displayObjectives => objectives ?? (objective != null ? [objective!] : const []);
 }
 
 class TileData {
@@ -75,14 +85,18 @@ class TileData {
 
 class CellData {
   int value;
-  bool isMultiplier;
   CellSpecialType specialType;
+  bool isMultiplier;
+  bool isCrystal;
+  bool isContagious;
   String? floatingText;
 
   CellData({
     this.value = 0,
-    this.isMultiplier = false,
     this.specialType = CellSpecialType.none,
+    this.isMultiplier = false,
+    this.isCrystal = false,
+    this.isContagious = false,
     this.floatingText,
   });
 }

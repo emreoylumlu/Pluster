@@ -5,6 +5,7 @@ class GameTile extends StatelessWidget {
   final int? number;
   final Color? color;
   final IconData? badgeIcon;
+  final String? badgeText;
   final Color? badgeColor;
   final bool isLocked;
   final double? size;
@@ -14,6 +15,7 @@ class GameTile extends StatelessWidget {
     this.number,
     this.color,
     this.badgeIcon,
+    this.badgeText,
     this.badgeColor,
     this.isLocked = false,
     this.size,
@@ -63,7 +65,7 @@ class GameTile extends StatelessWidget {
         // Empty Cell with potential Special Type Aura
         if (color == null) {
           final Color auraColor = badgeColor ?? Colors.white.withValues(alpha: 0.15);
-          final bool hasSpecial = badgeIcon != null;
+          final bool hasSpecial = badgeIcon != null || badgeText != null;
 
           return Container(
             width: tileSize,
@@ -78,63 +80,84 @@ class GameTile extends StatelessWidget {
               boxShadow: hasSpecial
                   ? [
                       BoxShadow(
-                        color: auraColor.withValues(alpha: 0.25),
-                        blurRadius: 14,
+                        color: auraColor.withValues(alpha: 0.2),
+                        blurRadius: 12,
                         spreadRadius: 1,
                       ),
                     ]
                   : [],
             ),
-            child: Center(
-              child: Icon(
-                badgeIcon ?? Icons.add_rounded,
-                size: hasSpecial ? tileSize * 0.36 : tileSize * 0.22,
-                color: hasSpecial ? auraColor : Colors.white.withValues(alpha: 0.12),
-              ),
+            child: Stack(
+              children: [
+                if (hasSpecial)
+                  Positioned(
+                    top: 5,
+                    right: 5,
+                    child: Container(
+                      padding: badgeText != null ? const EdgeInsets.symmetric(horizontal: 5, vertical: 2) : EdgeInsets.zero,
+                      width: badgeText != null ? null : (badgeSize * 0.75),
+                      height: badgeSize * 0.75,
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: auraColor, width: 1.0),
+                      ),
+                      child: Center(
+                        child: badgeText != null
+                            ? Text(
+                                badgeText!,
+                                style: TextStyle(
+                                  color: auraColor,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              )
+                            : Icon(badgeIcon, size: badgeSize * 0.45, color: auraColor),
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         }
 
-        // Filled Tile with Value (1-8)
-        final int val = (number ?? 1).clamp(1, 8);
-        final double shadowBlur = 10.0 + val * 2.5;
-        final double shadowSpread = 0.5 + val * 0.3;
-
+        // Filled Game Tile
         return Container(
           width: tileSize,
           height: tileSize,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             gradient: LinearGradient(
+              colors: [
+                color!.withValues(alpha: 0.95),
+                color!.withValues(alpha: 0.72),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [color!.withValues(alpha: 0.98), color!.withValues(alpha: 0.76)],
             ),
             border: Border.all(
-              color: Colors.white.withValues(alpha: 0.25 + (val * 0.04)),
-              width: 1.2,
+              color: Colors.white.withValues(alpha: 0.45),
+              width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: color!.withValues(alpha: 0.30 + (val * 0.05)),
-                blurRadius: shadowBlur,
-                spreadRadius: shadowSpread,
+                color: color!.withValues(alpha: 0.45),
+                blurRadius: 14,
+                spreadRadius: 1,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: Stack(
-            clipBehavior: Clip.none,
             children: [
-              // Glossy top highlight
               Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: tileSize * 0.32,
+                top: 4,
+                left: 6,
+                right: 6,
                 child: Container(
+                  height: tileSize * 0.28,
                   decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                    borderRadius: BorderRadius.circular(12),
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -144,26 +167,42 @@ class GameTile extends StatelessWidget {
                 ),
               ),
 
-              // Top-Right Badge (Non-overlapping with center number)
-              if (badgeIcon != null)
+              // Top-Right Badge (Icon or Text like 2x, 4x)
+              if (badgeText != null || badgeIcon != null)
                 Positioned(
-                  top: 5,
-                  right: 5,
+                  top: 4,
+                  right: 4,
                   child: Container(
-                    width: badgeSize * 0.75,
+                    padding: badgeText != null ? const EdgeInsets.symmetric(horizontal: 5, vertical: 2) : EdgeInsets.zero,
+                    width: badgeText != null ? null : (badgeSize * 0.75),
                     height: badgeSize * 0.75,
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black.withValues(alpha: 0.35),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 0.8),
+                      color: Colors.black.withValues(alpha: 0.65),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: badgeColor ?? Colors.white, width: 1.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: (badgeColor ?? Colors.amber).withValues(alpha: 0.4),
+                          blurRadius: 6,
+                        ),
+                      ],
                     ),
                     child: Center(
-                      child: Icon(badgeIcon, size: badgeSize * 0.45, color: badgeColor ?? Colors.white),
+                      child: badgeText != null
+                          ? Text(
+                              badgeText!,
+                              style: TextStyle(
+                                color: badgeColor ?? const Color(0xFFFFD166),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            )
+                          : Icon(badgeIcon, size: badgeSize * 0.45, color: badgeColor ?? Colors.white),
                     ),
                   ),
                 ),
 
-              // Centered Scaled Number (Auto-fitting for iPhone 11 & Vivo)
+              // Centered Scaled Number
               Center(
                 child: Padding(
                   padding: const EdgeInsets.all(4.0),
@@ -219,6 +258,7 @@ class AnimatedGameTile extends StatefulWidget {
   final int? number;
   final Color? color;
   final IconData? badgeIcon;
+  final String? badgeText;
   final Color? badgeColor;
   final bool isLocked;
   final double? size;
@@ -228,6 +268,7 @@ class AnimatedGameTile extends StatefulWidget {
     this.number,
     this.color,
     this.badgeIcon,
+    this.badgeText,
     this.badgeColor,
     this.isLocked = false,
     this.size,
@@ -280,6 +321,7 @@ class _AnimatedGameTileState extends State<AnimatedGameTile> with SingleTickerPr
         number: widget.number,
         color: widget.color,
         badgeIcon: widget.badgeIcon,
+        badgeText: widget.badgeText,
         badgeColor: widget.badgeColor,
         isLocked: widget.isLocked,
         size: widget.size,
