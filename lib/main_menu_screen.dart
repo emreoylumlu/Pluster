@@ -3,17 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_models.dart';
 import 'top_bar.dart';
+import 'localization.dart';
 
 class MainMenuScreen extends StatefulWidget {
   final int highScore;
   final Function(GameMode mode) onSelectMode;
   final VoidCallback onOpenHelp;
+  final AppLanguage currentLanguage;
+  final VoidCallback onLanguageToggle;
 
   const MainMenuScreen({
     super.key,
     required this.highScore,
     required this.onSelectMode,
     required this.onOpenHelp,
+    this.currentLanguage = AppLanguage.tr,
+    required this.onLanguageToggle,
   });
 
   @override
@@ -47,6 +52,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations(widget.currentLanguage);
+
     return Scaffold(
       backgroundColor: const Color(0xFF070C1A),
       body: Stack(
@@ -93,7 +100,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 children: [
-                  // Top Header Bar (High Score Badge & Help)
+                  // Top Header Bar (High Score Badge & Language & Help)
                   _buildHeaderBar(),
 
                   const Spacer(flex: 1),
@@ -115,9 +122,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                             _buildModeCard(
                               context: context,
                               mode: GameMode.endless,
-                              title: 'SONSUZ MOD',
-                              subtitle: 'Sonsuz skor kovalama, kombolar ve reklamla canlanma hakkı.',
-                              badgeText: 'REKOR: ${widget.highScore}',
+                              title: loc.text('sonsuz_mod'),
+                              subtitle: loc.text('sonsuz_mod_sub'),
+                              badgeText: '${loc.text("rekor")}: ${widget.highScore}',
                               badgeColor: const Color(0xFFFFD166),
                               accentColor: const Color(0xFF00E676),
                               icon: Icons.all_inclusive_rounded,
@@ -126,22 +133,40 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                                 widget.onSelectMode(GameMode.endless);
                               },
                             ),
-                            const SizedBox(height: 20),
-                            _buildModeCard(
-                              context: context,
-                              mode: GameMode.stage,
-                              title: 'SEVİYE MODU',
-                              subtitle: 'Aşama aşama hedefleri tamamla, zorlu seviyeleri geç!',
-                              badgeText: 'SEVİYELER',
-                              badgeColor: const Color(0xFFB388FF),
-                              accentColor: const Color(0xFF7C4DFF),
-                              icon: Icons.auto_awesome_motion_rounded,
-                              isComingSoon: false,
-                              onTap: () {
-                                HapticFeedback.heavyImpact();
-                                widget.onSelectMode(GameMode.stage);
-                              },
-                            ),
+                             const SizedBox(height: 16),
+                             _buildModeCard(
+                               context: context,
+                               mode: GameMode.stage,
+                               title: loc.text('seviye_modu'),
+                               subtitle: loc.text('seviye_modu_sub'),
+                               badgeText: loc.text('seviyeler'),
+                               badgeColor: const Color(0xFFB388FF),
+                               accentColor: const Color(0xFF7C4DFF),
+                               icon: Icons.auto_awesome_motion_rounded,
+                               isComingSoon: false,
+                               onTap: () {
+                                 HapticFeedback.heavyImpact();
+                                 widget.onSelectMode(GameMode.stage);
+                               },
+                             ),
+                             const SizedBox(height: 16),
+                             _buildModeCard(
+                               context: context,
+                               mode: GameMode.roguelike,
+                               title: widget.currentLanguage == AppLanguage.en ? 'PULSE DRAFT (ROGUELIKE)' : 'PULSE DRAFT (ROGUELIKE)',
+                               subtitle: widget.currentLanguage == AppLanguage.en
+                                   ? 'Start clean, draft cards each wave, build crazy tile synergies!'
+                                   : 'Temiz başla, her dalga 3 kart seçip desteni güçlendir, sinerjiler kur!',
+                               badgeText: 'DECKBUILDER 🎲',
+                               badgeColor: const Color(0xFFFF4081),
+                               accentColor: const Color(0xFFFFD166),
+                               icon: Icons.style_rounded,
+                               isComingSoon: false,
+                               onTap: () {
+                                 HapticFeedback.heavyImpact();
+                                 widget.onSelectMode(GameMode.roguelike);
+                               },
+                             ),
                           ],
                         ),
                       ),
@@ -162,6 +187,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
   }
 
   Widget _buildHeaderBar() {
+    final loc = AppLocalizations(widget.currentLanguage);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -185,7 +211,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
               const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 18),
               const SizedBox(width: 8),
               Text(
-                'EN YÜKSEK: ${widget.highScore}',
+                '${loc.text("en_yuksek")}: ${widget.highScore}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 12,
@@ -197,21 +223,62 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
           ),
         ),
 
-        // Help / Rules Button
-        IconButton(
-          onPressed: () {
-            HapticFeedback.selectionClick();
-            widget.onOpenHelp();
-          },
-          icon: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withValues(alpha: 0.08),
-              border: Border.all(color: Colors.white24, width: 1.2),
+        // Action Buttons Row: Language Switcher + Help
+        Row(
+          children: [
+            // Language Button (TR / EN)
+            InkWell(
+              borderRadius: BorderRadius.circular(20),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                widget.onLanguageToggle();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0E1A33).withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF7FFFD4).withValues(alpha: 0.5), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7FFFD4).withValues(alpha: 0.2),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.language_rounded, color: Color(0xFF7FFFD4), size: 16),
+                    const SizedBox(width: 5),
+                    Text(
+                      widget.currentLanguage == AppLanguage.tr ? 'TR' : 'EN',
+                      style: const TextStyle(
+                        color: Color(0xFF7FFFD4),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-            child: const Icon(Icons.help_outline_rounded, color: Colors.white70, size: 20),
-          ),
+            const SizedBox(width: 6),
+            IconButton(
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                widget.onOpenHelp();
+              },
+              icon: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.08),
+                  border: Border.all(color: Colors.white24, width: 1.2),
+                ),
+                child: const Icon(Icons.help_outline_rounded, color: Colors.white70, size: 20),
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -224,29 +291,35 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
         final double glowVal = _pulseController.value;
         return Column(
           children: [
-            ShaderMask(
-              shaderCallback: (bounds) => LinearGradient(
-                colors: [
-                  const Color(0xFF7FFFD4),
-                  const Color(0xFF00E676),
-                  const Color(0xFFFFD166).withValues(alpha: 0.9 + glowVal * 0.1),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              child: Text(
-                'PLUSTER',
-                style: TextStyle(
-                  fontSize: 52,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 6.0,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      color: const Color(0xFF00E676).withValues(alpha: 0.5 + glowVal * 0.3),
-                      blurRadius: 28,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: ShaderMask(
+                  shaderCallback: (bounds) => LinearGradient(
+                    colors: [
+                      const Color(0xFF7FFFD4),
+                      const Color(0xFF00E676),
+                      const Color(0xFFFFD166).withValues(alpha: 0.9 + glowVal * 0.1),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ).createShader(bounds),
+                  child: Text(
+                    'PLUSTER',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 4.0,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          color: const Color(0xFF00E676).withValues(alpha: 0.5 + glowVal * 0.3),
+                          blurRadius: 28,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -307,8 +380,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
             children: [
               // Left Icon Disc
               Container(
-                width: 64,
-                height: 64,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
@@ -325,45 +398,49 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                     ),
                   ],
                 ),
-                child: Icon(icon, size: 32, color: Colors.white),
+                child: Icon(icon, size: 28, color: Colors.white),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 14),
 
               // Title & Subtitle Info
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: badgeColor.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: badgeColor.withValues(alpha: 0.6), width: 1),
-                          ),
-                          child: Text(
-                            badgeText,
-                            style: TextStyle(
-                              color: badgeColor,
-                              fontSize: 10,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: 0.8,
+                              letterSpacing: 1.2,
                             ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: badgeColor.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: badgeColor.withValues(alpha: 0.6), width: 1),
+                            ),
+                            child: Text(
+                              badgeText,
+                              style: TextStyle(
+                                color: badgeColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 6),
                     Text(

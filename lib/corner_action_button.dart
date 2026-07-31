@@ -26,8 +26,8 @@ class CornerActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const double buttonSize = 70.0;
-    const double badgeSize = 20.0;
+    const double buttonSize = 48.0;
+    const double badgeSize = 16.0;
 
     Widget buttonWidget = Material(
       color: Colors.transparent,
@@ -40,16 +40,16 @@ class CornerActionButton extends StatelessWidget {
           height: buttonSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: Colors.black.withValues(alpha: 0.24),
+            color: Colors.black.withValues(alpha: 0.30),
             border: Border.all(
-              color: iconColor.withValues(alpha: 0.4),
+              color: iconColor.withValues(alpha: 0.5),
               width: 1.2,
             ),
             boxShadow: [
               BoxShadow(
-                color: glowColor.withValues(alpha: 0.32),
-                blurRadius: 22,
-                spreadRadius: 2,
+                color: glowColor.withValues(alpha: 0.35),
+                blurRadius: 16,
+                spreadRadius: 1.5,
               ),
             ],
           ),
@@ -57,7 +57,7 @@ class CornerActionButton extends StatelessWidget {
             child: Icon(
               icon,
               color: iconColor,
-              size: 30,
+              size: 22,
             ),
           ),
         ),
@@ -73,7 +73,7 @@ class CornerActionButton extends StatelessWidget {
     }
 
     return SizedBox(
-      width: buttonSize,
+      width: buttonSize + 6,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -83,23 +83,23 @@ class CornerActionButton extends StatelessWidget {
               buttonWidget,
               if (badgeCount != null)
                 Positioned(
-                  right: -4,
-                  top: -4,
+                  right: -2,
+                  top: -2,
                   child: Container(
                     width: badgeSize,
                     height: badgeSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: badgeColor,
-                      border: Border.all(color: Colors.white, width: 1.2),
+                      border: Border.all(color: Colors.white, width: 1.0),
                     ),
                     child: Center(
                       child: Text(
                         '$badgeCount',
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
@@ -107,15 +107,18 @@ class CornerActionButton extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            label.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              letterSpacing: 1.4,
-              fontWeight: FontWeight.w600,
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 9,
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

@@ -163,17 +163,23 @@ class GameTile extends StatelessWidget {
                   ),
                 ),
 
-              // Centered Scaled Number
+              // Centered Scaled Number (Auto-fitting for iPhone 11 & Vivo)
               Center(
-                child: Text(
-                  number != null ? '$number' : '',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: dynamicFontSize,
-                    fontWeight: FontWeight.w900,
-                    shadows: [
-                      Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 2)),
-                    ],
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      number != null ? '$number' : '',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: dynamicFontSize,
+                        fontWeight: FontWeight.w900,
+                        shadows: [
+                          Shadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 10, offset: const Offset(0, 2)),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),

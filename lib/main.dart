@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'top_bar.dart';
 import 'energy_section.dart';
-import 'sidebar.dart';
 import 'corner_action_button.dart';
 import 'game_models.dart';
 import 'game_tile.dart';
@@ -12,6 +11,9 @@ import 'drag_drop_bar.dart';
 import 'main_menu_screen.dart';
 import 'level_select_screen.dart';
 import 'levels.dart';
+import 'localization.dart';
+import 'roguelike_models.dart';
+import 'roguelike_draft_modal.dart';
 
 void main() {
   runApp(const PulseGridApp());
@@ -29,6 +31,13 @@ class _PulseGridAppState extends State<PulseGridApp> {
   LevelData? selectedLevel;
   int globalHighScore = 0;
   Map<int, int> levelStars = {}; // levelId -> stars (0-3)
+  AppLanguage currentLanguage = AppLanguage.tr;
+
+  void _toggleLanguage() {
+    setState(() {
+      currentLanguage = currentLanguage == AppLanguage.tr ? AppLanguage.en : AppLanguage.tr;
+    });
+  }
 
   int get unlockedUpTo {
     // Unlock next level after each completion; start with level 1 open
@@ -180,6 +189,8 @@ class _PulseGridAppState extends State<PulseGridApp> {
       home: activeMode == null
           ? MainMenuScreen(
               highScore: globalHighScore,
+              currentLanguage: currentLanguage,
+              onLanguageToggle: _toggleLanguage,
               onSelectMode: (mode) {
                 setState(() {
                   activeMode = mode;
@@ -208,6 +219,8 @@ class _PulseGridAppState extends State<PulseGridApp> {
                   initialHighScore: globalHighScore,
                   onHighScoreUpdated: _updateHighScore,
                   onLevelComplete: _onLevelComplete,
+                  currentLanguage: currentLanguage,
+                  onLanguageToggle: _toggleLanguage,
                   onBackToMenu: () {
                     setState(() {
                       activeMode = null;
@@ -230,6 +243,8 @@ class PulseGridScreen extends StatefulWidget {
   final void Function(int levelId, int stars)? onLevelComplete;
   final VoidCallback onBackToMenu;
   final VoidCallback? onBackToLevelSelect;
+  final AppLanguage currentLanguage;
+  final VoidCallback? onLanguageToggle;
 
   const PulseGridScreen({
     super.key,
@@ -240,6 +255,8 @@ class PulseGridScreen extends StatefulWidget {
     this.onLevelComplete,
     required this.onBackToMenu,
     this.onBackToLevelSelect,
+    this.currentLanguage = AppLanguage.tr,
+    this.onLanguageToggle,
   });
 
   @override
@@ -293,6 +310,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   bool isLevelFailed = false;
   int _levelCompletedStars = 0;
 
+  late RoguelikeRunState roguelikeRunState;
+  bool isShowingDraftModal = false;
+
   late AnimationController _dangerPulseController;
   late AnimationController _shakeController;
 
@@ -330,6 +350,67 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       widget.onHighScoreUpdated(highScore);
     }
     _checkScoreUnlocks();
+    _checkRoguelikeDraftTrigger();
+  }
+
+  void _checkRoguelikeDraftTrigger() {
+    if (widget.mode == GameMode.roguelike && !isShowingDraftModal && score >= roguelikeRunState.waveTargetScore) {
+      _showDraftModal();
+    }
+  }
+
+  void _showDraftModal() {
+    setState(() => isShowingDraftModal = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return RoguelikeDraftModal(
+          floor: roguelikeRunState.currentFloor,
+          runState: roguelikeRunState,
+          language: widget.currentLanguage,
+          onCardSelected: (card) {
+            Navigator.of(context).pop();
+            setState(() {
+              _applyCardEffects(card);
+              roguelikeRunState.advanceFloor();
+              isShowingDraftModal = false;
+            });
+            _showEnergyFloatingText('✨ KART EKLENDİ: ${card.name}!');
+          },
+        );
+      },
+    );
+  }
+
+  void _applyCardEffects(RoguelikeCard card) {
+    roguelikeRunState.applyCard(card);
+
+    if (card.unlocksCellType != null) {
+      List<_Point> candidates = [];
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].specialType == CellSpecialType.none && grid[r][c].value > 0) {
+            candidates.add(_Point(r, c));
+          }
+        }
+      }
+      if (candidates.isNotEmpty) {
+        final targetPt = candidates[Random().nextInt(candidates.length)];
+        grid[targetPt.r][targetPt.c].specialType = card.unlocksCellType!;
+      }
+    }
+
+    if (card.unlocksTileType != null) {
+      final freeIndex = spawnSlots.indexWhere((t) => t?.type == TileType.normal || t == null);
+      if (freeIndex != -1) {
+        if (card.unlocksTileType == TileType.bomb) {
+          spawnSlots[freeIndex] = TileData(value: 0, type: TileType.bomb);
+        } else if (card.unlocksTileType == TileType.multiplier) {
+          spawnSlots[freeIndex] = TileData(value: 2, type: TileType.multiplier);
+        }
+      }
+    }
   }
 
   void _checkScoreUnlocks() {
@@ -401,10 +482,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       isGameOver = false;
       isProcessingPulse = false;
       activeComboTitle = null;
-      energyFloatingText = null;
-      hasUsedAdRevive = false;
-      isPlayingAd = false;
-      adCountdown = 3;
+      roguelikeRunState = RoguelikeRunState();
+      isShowingDraftModal = false;
       // Level tracking reset
       levelMoveCount = 0;
       levelBombsUsed = 0;
@@ -441,7 +520,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     List<CellSpecialType> specials;
 
-    if (level != null && level.guaranteedCells.isNotEmpty) {
+    if (widget.mode == GameMode.roguelike) {
+      specials = roguelikeRunState.unlockedCellTypes.where((type) => type != CellSpecialType.none).toList();
+    } else if (level != null && level.guaranteedCells.isNotEmpty) {
       // Level mode: use guaranteed cells list
       specials = List.from(level.guaranteedCells);
     } else {
@@ -470,8 +551,15 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   TileData _generateRandomTile() {
+    final level = widget.level;
+    final bool allowBomb = level == null || level.id >= 6 || level.forceBombAvailable;
+    final bool allowMultiplier = level == null || level.id >= 21 || level.forceMultiplierAvailable;
+
     int roll = Random().nextInt(100);
-    if (roll < 75) {
+    if (!allowBomb && roll >= 90) roll = Random().nextInt(75);
+    if (!allowMultiplier && roll >= 75 && roll < 90) roll = Random().nextInt(75);
+
+    if (roll < 75 || (!allowMultiplier && !allowBomb)) {
       int val;
       if (score >= 8000) {
         int sub = Random().nextInt(100);
@@ -501,10 +589,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         val = Random().nextInt(3) + 1;
       }
       return TileData(value: val, type: TileType.normal);
-    } else if (roll < 90) {
+    } else if (roll < 90 && allowMultiplier) {
       return TileData(value: Random().nextInt(2) + 1, type: TileType.multiplier);
-    } else {
+    } else if (allowBomb) {
       return TileData(value: 0, type: TileType.bomb);
+    } else {
+      return TileData(value: Random().nextInt(3) + 1, type: TileType.normal);
     }
   }
 
@@ -591,17 +681,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final mq = MediaQuery.of(context);
     final double spacing = 10.0;
     
-    // Responsive adjustments
-    final bool isNarrow = mq.size.width < 400;
-    final double sidebarWidth = isNarrow ? 80.0 : 100.0;
-    
-    // Adjust horizontal space taking sidebar into account
-    final double availableWidth = mq.size.width - (sidebarWidth + 44); // 16*2 padding + 12 gap
-    final double widthLimit = availableWidth * 0.98;
-    final double heightLimit = mq.size.height * 0.55;
+    // Responsive full width grid adjustments
+    final double availableWidth = mq.size.width - 24;
+    final double availableHeight = (mq.size.height - mq.padding.top - mq.padding.bottom - 220).clamp(180.0, 900.0);
+    final double widthLimit = availableWidth * 0.96;
+    final double heightLimit = availableHeight * 0.95;
     
     final double boardWidth = min(widthLimit, heightLimit);
-    final double tileSize = max(42.0, min((boardWidth - spacing * 3) / 4.0, 92.0));
+    final double tileSize = max(44.0, min((boardWidth - spacing * 3) / 4.0, 92.0));
 
     return Scaffold(
       backgroundColor: const Color(0xFF121E38),
@@ -629,7 +716,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               child: Column(
                 children: [
                   PlusterTopBar(
@@ -637,44 +724,36 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                     highScore: highScore,
                     onMenu: () => _showMenuDialog(context),
                     onHelp: () => _showHowToPlay(context),
+                    currentLanguage: widget.currentLanguage,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
                   EnergySection(
                     energyPercent: energy / 100.0,
                     combo: maxCombo > 0 ? maxCombo : 1,
+                    explosionsCount: explosionsCount,
+                    maxCombo: maxCombo,
+                    highScore: highScore,
                     isLowEnergy: isLowEnergy,
+                    isStageMode: widget.level != null,
+                    language: widget.currentLanguage,
                     dangerPulse: _dangerPulseController,
                     energyFloatingText: energyFloatingText,
                     energyFloatingTextKey: energyFloatingTextKey,
                     energyPulseDirection: energyPulseDirection,
                     energyPulseTrigger: energyPulseTrigger,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
+                  if (widget.level != null)
+                    _buildLevelObjectivesPanelHorizontal()
+                  else if (widget.mode == GameMode.roguelike)
+                    _buildRoguelikeHeaderPanel(),
                   Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          width: sidebarWidth,
-                          child: widget.level != null
-                              ? _buildLevelObjectivesPanel(sidebarWidth)
-                              : Sidebar(
-                                  width: sidebarWidth,
-                                  explosionsCount: explosionsCount,
-                                  maxCombo: maxCombo,
-                                  highScore: highScore,
-                                ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildMainBoard(context, isLowEnergy, tileSize, spacing),
-                        ),
-                      ],
+                    child: Center(
+                      child: _buildMainBoard(context, isLowEnergy, tileSize, spacing),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 6),
                   _buildBottomControls(tileSize),
-                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -825,153 +904,259 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildLevelObjectivesPanel(double width) {
+  String _getObjectiveShortLabel(LevelObjective obj) {
+    final bool isEn = widget.currentLanguage == AppLanguage.en;
+    switch (obj.type) {
+      case ObjectiveType.scoreTarget:
+        return isEn ? 'Score: $score/${obj.target}' : 'Skor: $score/${obj.target}';
+      case ObjectiveType.comboCount:
+        return isEn ? 'Combo: $levelComboChains/${obj.target}' : 'Kombo: $levelComboChains/${obj.target}';
+      case ObjectiveType.empCount:
+        return 'EMP: $levelEmpFired/${obj.target}';
+      case ObjectiveType.clearLocked:
+        return isEn ? 'Locked: $levelLockedCleared/${obj.target}' : 'Kilit: $levelLockedCleared/${obj.target}';
+      case ObjectiveType.energyRemaining:
+        return isEn ? 'Energy: %${(energy).round()}' : 'Enerji: %${(energy).round()}';
+      case ObjectiveType.bombUsed:
+        return isEn ? 'Bomb: $levelBombsUsed/${obj.target}' : 'Bomba: $levelBombsUsed/${obj.target}';
+      case ObjectiveType.multiplierExplosion:
+        return isEn ? 'Mult: $levelMultiplierExplosions/${obj.target}' : 'Çarpan: $levelMultiplierExplosions/${obj.target}';
+    }
+  }
+
+  Widget _buildLevelObjectivesPanelHorizontal() {
     final level = widget.level!;
     final moveLimit = level.constraints?.moveLimit;
     final movesLeft = moveLimit != null ? (moveLimit - levelMoveCount).clamp(0, moveLimit) : null;
+    final loc = AppLocalizations(widget.currentLanguage);
 
-    return SizedBox(
-      width: width,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Level title
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            decoration: BoxDecoration(
-              color: level.isBoss
-                  ? const Color(0xFFFF4500).withValues(alpha: 0.15)
-                  : const Color(0xFF00BFA5).withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: level.isBoss
-                    ? const Color(0xFFFF6B35).withValues(alpha: 0.5)
-                    : const Color(0xFF00BFA5).withValues(alpha: 0.3),
-              ),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  'SEVİYE ${level.id}',
-                  textAlign: TextAlign.center,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: GlassCard(
+        borderRadius: BorderRadius.circular(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text(
+                  '🎯 ${loc.text('seviye_gorevleri')}',
                   style: TextStyle(
-                    color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
-                    fontSize: 9,
+                    color: const Color(0xFF7FFFD4).withValues(alpha: 0.90),
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 0.5,
+                    letterSpacing: 2.0,
                   ),
                 ),
-                if (movesLeft != null) ...[  
-                  const SizedBox(height: 3),
-                  Text(
-                    '$movesLeft H.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: movesLeft <= 5 ? Colors.redAccent : Colors.white70,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  Text(
-                    'hamle kaldı',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.4),
-                      fontSize: 8,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          // Objectives list
-          Expanded(
-            child: ListView.separated(
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: level.objectives.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 6),
-              itemBuilder: (context, i) {
-                final obj = level.objectives[i];
-                final met = _isObjectiveMet(obj);
-                return Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: met
-                        ? const Color(0xFF00BFA5).withValues(alpha: 0.12)
-                        : Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: met
-                          ? const Color(0xFF00BFA5).withValues(alpha: 0.4)
-                          : Colors.white.withValues(alpha: 0.08),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                            size: 12,
-                            color: met ? const Color(0xFF00BFA5) : Colors.white38,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              obj.label,
-                              style: TextStyle(
-                                color: met ? const Color(0xFF7FFFD4) : Colors.white60,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left: Level Badge & Moves Left
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: level.isBoss ? const Color(0xFFFF6B35).withValues(alpha: 0.25) : const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                          width: 1.0,
+                        ),
                       ),
-                      const SizedBox(height: 3),
-                      // Progress bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: _getObjectiveProgress(obj).clamp(0.0, 1.0),
-                          backgroundColor: Colors.white.withValues(alpha: 0.08),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            met ? const Color(0xFF00BFA5) : const Color(0xFF4FC3F7),
+                      child: Text(
+                        '${loc.text('seviye')} ${level.id}',
+                        style: TextStyle(
+                          color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                    if (movesLeft != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: movesLeft <= 5 ? Colors.redAccent.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: movesLeft <= 5 ? Colors.redAccent : Colors.white24,
+                            width: 1.0,
                           ),
-                          minHeight: 4,
+                        ),
+                        child: Text(
+                          '$movesLeft/$moveLimit ${loc.text('hamle')}',
+                          style: TextStyle(
+                            color: movesLeft <= 5 ? Colors.redAccent : Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ],
+                  ],
+                ),
+
+                // Right: Clear Objectives List Chips
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: level.objectives.map((obj) {
+                          final met = _isObjectiveMet(obj);
+                          return Container(
+                            margin: const EdgeInsets.only(left: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: met ? const Color(0xFF00BFA5).withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: met ? const Color(0xFF00BFA5) : Colors.white24,
+                                width: 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  met ? Icons.check_circle_rounded : Icons.task_alt_rounded,
+                                  size: 13,
+                                  color: met ? const Color(0xFF00E676) : const Color(0xFFFFD166),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _getObjectiveShortLabel(obj),
+                                  style: TextStyle(
+                                    color: met ? const Color(0xFF7FFFD4) : Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
                   ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  double _getObjectiveProgress(LevelObjective obj) {
-    switch (obj.type) {
-      case ObjectiveType.scoreTarget:
-        return score / obj.target;
-      case ObjectiveType.comboCount:
-        return levelComboChains / obj.target;
-      case ObjectiveType.empCount:
-        return levelEmpFired / obj.target;
-      case ObjectiveType.clearLocked:
-        return levelLockedCleared / obj.target;
-      case ObjectiveType.energyRemaining:
-        return energy / obj.target;
-      case ObjectiveType.bombUsed:
-        return levelBombsUsed / obj.target;
-      case ObjectiveType.multiplierExplosion:
-        return levelMultiplierExplosions / obj.target;
-    }
+  Widget _buildRoguelikeHeaderPanel() {
+    final isEn = widget.currentLanguage == AppLanguage.en;
+    final floor = roguelikeRunState.currentFloor;
+    final target = roguelikeRunState.waveTargetScore;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: GlassCard(
+        borderRadius: BorderRadius.circular(16),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Text(
+                  isEn ? '🎲 ROGUELIKE DRAFT MODE' : '🎲 PULSE DRAFT (ROGUELIKE)',
+                  style: const TextStyle(
+                    color: Color(0xFFFFD166),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.8,
+                  ),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFD166).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFFD166), width: 1.0),
+                  ),
+                  child: Text(
+                    isEn ? 'FLOOR $floor' : 'KAT $floor',
+                    style: const TextStyle(
+                      color: Color(0xFFFFD166),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF7FFFD4), width: 1.0),
+                  ),
+                  child: Text(
+                    isEn ? 'NEXT DRAFT: $score / $target' : 'DRAFT HEDEFİ: $score / $target',
+                    style: const TextStyle(
+                      color: Color(0xFF7FFFD4),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (roguelikeRunState.activePassives.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: roguelikeRunState.activePassives.map((passiveId) {
+                    final card = kRoguelikeCards.firstWhere((c) => c.id == passiveId, orElse: () => kRoguelikeCards.first);
+                    return Container(
+                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: card.color.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: card.color.withValues(alpha: 0.5), width: 1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(card.icon, size: 11, color: card.color),
+                          const SizedBox(width: 3),
+                          Text(
+                            card.name,
+                            style: TextStyle(color: card.color, fontSize: 9, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildLevelCompleteOverlay() {
@@ -1472,7 +1657,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 6),
             child: DragDropBar(
               spawnSlots: spawnSlots,
               tileSize: tileSize,
@@ -1503,10 +1688,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   double _getTileEnergyCost(TileData tile) {
-    if (tile.type == TileType.multiplier) {
-      return 15.0;
+    double cost = (tile.type == TileType.multiplier) ? 15.0 : (tile.value * 6.0);
+    if (widget.mode == GameMode.roguelike && roguelikeRunState.hasPassive('energy_saver')) {
+      cost *= 0.85;
     }
-    return (tile.value * 6.0);
+    return cost;
   }
 
   Future<void> _handleTilePlacement(int r, int c, TileData tile) async {

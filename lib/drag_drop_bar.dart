@@ -61,23 +61,29 @@ class NumberDisc extends StatelessWidget {
             ),
           ),
           Center(
-            child: isBomb
-                ? Icon(
-                    Icons.local_fire_department,
-                    color: Colors.white,
-                    size: 30 * s,
-                  )
-                : Text(
-                    '$number',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 30 * s,
-                      fontWeight: FontWeight.w900,
-                      shadows: const [
-                        Shadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
-                      ],
-                    ),
-                  ),
+            child: Padding(
+              padding: EdgeInsets.all(4 * s),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: isBomb
+                    ? Icon(
+                        Icons.local_fire_department,
+                        color: Colors.white,
+                        size: 34 * s,
+                      )
+                    : Text(
+                        '$number',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 34 * s,
+                          fontWeight: FontWeight.w900,
+                          shadows: const [
+                            Shadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 2)),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
           ),
         ],
       ),
@@ -122,69 +128,74 @@ class DragDropBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double mq = MediaQuery.of(context).size.height;
-        final bool isShort = mq < 700;
-        final double discSize = isShort ? 56 : 66;
-        final double vPad = isShort ? 10 : 16;
+        final double mqHeight = MediaQuery.of(context).size.height;
+        final bool isShort = mqHeight < 700;
+        final double maxDiscSize = (constraints.maxWidth - 12) / 3.2;
+        final double discSize = maxDiscSize.clamp(44.0, 78.0);
+        final double vPad = isShort ? 6 : 10;
 
         return GlassCard(
           borderRadius: BorderRadius.circular(48),
-          padding: EdgeInsets.symmetric(horizontal: 18, vertical: vPad),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Row(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: vPad),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text('<<<', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11, letterSpacing: 1.6)),
-                    const SizedBox(width: 10),
+                    Text('<<<', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 10, letterSpacing: 1.2)),
+                    const SizedBox(width: 6),
                     const Text(
                       'SÜRÜKLE & BIRAK',
-                      style: TextStyle(color: Colors.white70, fontSize: 12, letterSpacing: 1.6, fontWeight: FontWeight.w600),
+                      style: TextStyle(color: Colors.white70, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w600),
                     ),
-                    const SizedBox(width: 10),
-                    Text('>>>', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11, letterSpacing: 1.6)),
+                    const SizedBox(width: 6),
+                    Text('>>>', style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 10, letterSpacing: 1.2)),
                   ],
                 ),
-              ),
-              SizedBox(height: isShort ? 8 : 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: spawnSlots.map((tile) {
-                  if (tile == null) {
-                    return Container(
-                      width: discSize,
-                      height: discSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.black.withValues(alpha: 0.25),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          Icons.hourglass_empty_rounded,
-                          size: discSize * 0.32,
-                          color: Colors.white.withValues(alpha: 0.15),
+                SizedBox(height: isShort ? 4 : 6),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: spawnSlots.map((tile) {
+                    Widget slotWidget;
+                    if (tile == null) {
+                      slotWidget = Container(
+                        width: discSize,
+                        height: discSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.black.withValues(alpha: 0.25),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1.5),
                         ),
-                      ),
+                        child: Center(
+                          child: Icon(
+                            Icons.hourglass_empty_rounded,
+                            size: discSize * 0.32,
+                            color: Colors.white.withValues(alpha: 0.15),
+                          ),
+                        ),
+                      );
+                    } else {
+                      final Color color = _discColor(tile);
+                      slotWidget = _AnimatedDiscSlot(
+                        key: ValueKey<TileData>(tile),
+                        tile: tile,
+                        discSize: discSize,
+                        isDisabled: isDisabled,
+                        color: color,
+                        onDragCompleted: onDragCompleted,
+                      );
+                    }
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 3.0),
+                      child: slotWidget,
                     );
-                  }
-
-                  final Color color = _discColor(tile);
-
-                  return _AnimatedDiscSlot(
-                    key: ValueKey<TileData>(tile),
-                    tile: tile,
-                    discSize: discSize,
-                    isDisabled: isDisabled,
-                    color: color,
-                    onDragCompleted: onDragCompleted,
-                  );
-                }).toList(),
-              ),
-            ],
+                  }).toList(),
+                ),
+              ],
+            ),
           ),
         );
       },

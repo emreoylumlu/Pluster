@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'localization.dart';
 
 // GlassCard - reusable frosted glass card used across the UI.
 class GlassCard extends StatelessWidget {
@@ -77,6 +78,7 @@ class PlusterTopBar extends StatelessWidget {
   final int highScore;
   final VoidCallback? onMenu;
   final VoidCallback? onHelp;
+  final AppLanguage currentLanguage;
   final double horizontalPadding;
 
   const PlusterTopBar({
@@ -85,6 +87,7 @@ class PlusterTopBar extends StatelessWidget {
     this.highScore = 0,
     this.onMenu,
     this.onHelp,
+    this.currentLanguage = AppLanguage.tr,
     this.horizontalPadding = 16.0,
   });
 
@@ -95,13 +98,13 @@ class PlusterTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double menuSize = 48;
-    final double badgeSize = 40;
     final bool isNewRecord = score > 0 && score >= highScore;
+    final loc = AppLocalizations(currentLanguage);
     final TextStyle titleStyle = const TextStyle(
       color: Colors.white,
-      fontSize: 34,
+      fontSize: 22,
       fontWeight: FontWeight.w900,
-      letterSpacing: 5.0,
+      letterSpacing: 2.0,
       height: 1.0,
       shadows: [
         Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 1)),
@@ -121,129 +124,95 @@ class PlusterTopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 padding: EdgeInsets.zero,
                 onTap: onMenu,
-                child: Icon(Icons.menu, color: Colors.white, size: 22),
+                child: const Icon(Icons.menu, color: Colors.white, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 6),
               GlassCard(
                 width: menuSize,
                 height: menuSize,
                 borderRadius: BorderRadius.circular(12),
                 padding: EdgeInsets.zero,
                 onTap: onHelp,
-                child: Icon(Icons.lightbulb_outline, color: Colors.white, size: 22),
+                child: const Icon(Icons.lightbulb_outline, color: Colors.white, size: 20),
               ),
             ],
           ),
 
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('PLUSTER', style: titleStyle, textAlign: TextAlign.center),
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 18,
-                  child: CustomPaint(
-                    painter: _SineWavePainter(
-                      color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFAEEEF6),
-                      glowColor: isNewRecord ? const Color(0xFFFFD166).withValues(alpha: 0.4) : const Color(0xFFAEEEF6).withValues(alpha: 0.28),
-                      dotColor: const Color(0xFFFFFFFF),
-                    ),
-                    child: Container(),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text('PLUSTER', style: titleStyle, textAlign: TextAlign.center),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    width: 100,
+                    height: 14,
+                    child: CustomPaint(
+                      painter: _SineWavePainter(
+                        color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFAEEEF6),
+                        glowColor: isNewRecord ? const Color(0xFFFFD166).withValues(alpha: 0.4) : const Color(0xFFAEEEF6).withValues(alpha: 0.28),
+                        dotColor: const Color(0xFFFFFFFF),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 
           GlassCard(
             borderRadius: BorderRadius.circular(14),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      isNewRecord ? '🏆 YENİ REKOR!' : 'REKOR: ${_formatScore(highScore)}',
-                      style: TextStyle(
-                        color: isNewRecord ? const Color(0xFFFFD166) : Colors.white.withValues(alpha: 0.7),
-                        fontSize: 10,
-                        letterSpacing: 1.1,
-                        fontWeight: FontWeight.w800,
-                      ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    isNewRecord ? loc.text('yeni_rekor') : loc.text('skor'),
+                    style: TextStyle(
+                      color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFF7FFFD4),
+                      fontSize: 9,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w900,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
+                  ),
+                  const SizedBox(height: 2),
+                  ShaderMask(
+                    shaderCallback: (bounds) => LinearGradient(
+                      colors: isNewRecord
+                          ? [const Color(0xFFFFE082), const Color(0xFFFFB300)]
+                          : [Colors.white, const Color(0xFFE0F7FA)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ).createShader(bounds),
+                    child: Text(
                       _formatScore(score),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
                         height: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(width: 10),
-
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Container(
-                      width: badgeSize + 12,
-                      height: badgeSize + 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: isNewRecord ? const Color(0xFFFFD166).withValues(alpha: 0.3) : const Color(0xFFAEEEF6).withValues(alpha: 0.18),
-                            blurRadius: 14,
-                            spreadRadius: 2,
-                          ),
+                        shadows: [
+                          Shadow(color: Colors.black38, blurRadius: 4, offset: Offset(0, 1)),
                         ],
                       ),
                     ),
-                    Container(
-                      width: badgeSize,
-                      height: badgeSize,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: const Alignment(-0.6, -0.6),
-                          end: const Alignment(0.8, 0.8),
-                          colors: isNewRecord
-                              ? [const Color(0xFF4A3800), const Color(0xFF8C6B00)]
-                              : [const Color(0xFF062E1F), const Color(0xFF0D2E18)],
-                        ),
-                        border: Border.all(
-                          color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFAEEEF6).withValues(alpha: 0.18),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          isNewRecord ? Icons.emoji_events : Icons.eco,
-                          color: isNewRecord ? const Color(0xFFFFD166) : const Color(0xFFCFFAE6),
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
 }
 
 class _SineWavePainter extends CustomPainter {

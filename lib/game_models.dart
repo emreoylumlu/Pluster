@@ -2,7 +2,7 @@ enum TileType { normal, bomb, multiplier }
 
 enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore }
 
-enum GameMode { endless, stage }
+enum GameMode { endless, stage, roguelike }
 
 enum ObjectiveType {
   scoreTarget,
