@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../card_pool.dart';
 import '../roguelike_models.dart';
+import '../widgets/stone_tile_card_widget.dart';
 
 class CardDraftScreen extends StatefulWidget {
   final List<CardDefinition> offeredCards;
@@ -41,66 +42,8 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
       case CardTier.mid:
         return const Color(0xFFFFD166);
       case CardTier.rare:
-        return const Color(0xFFFF4081);
+        return const Color(0xFFE040FB);
     }
-  }
-
-  String _getTierName(CardTier tier) {
-    switch (tier) {
-      case CardTier.basic:
-        return 'TEMEL';
-      case CardTier.mid:
-        return 'ORTA';
-      case CardTier.rare:
-        return 'NADİR';
-    }
-  }
-
-  IconData _getCardIcon(CardDefinition card) {
-    if (card.effectType == CardEffectType.unlockTileType) {
-      switch (card.relatedTileType) {
-        case 'multiplier':
-          return Icons.clear_rounded;
-        case 'bomb':
-          return Icons.local_fire_department_rounded;
-        case 'magnet':
-          return Icons.all_inclusive_rounded;
-        case 'prism':
-          return Icons.style_rounded;
-        case 'shield':
-          return Icons.shield_rounded;
-        case 'wildcard':
-          return Icons.star_rounded;
-        case 'nova':
-          return Icons.flare_rounded;
-        case 'vortex':
-          return Icons.cyclone_rounded;
-        default:
-          return Icons.grid_view_rounded;
-      }
-    }
-
-    switch (card.effectType) {
-      case CardEffectType.energyCostMultiplier:
-        return Icons.battery_saver_rounded;
-      case CardEffectType.energyGainMultiplier:
-        return Icons.electric_bolt_rounded;
-      case CardEffectType.comboBonusMultiplier:
-        return Icons.auto_awesome_rounded;
-      case CardEffectType.spawnWeightBoost:
-        return Icons.trending_up_rounded;
-      case CardEffectType.minEnergyFloor:
-        return Icons.verified_user_rounded;
-      default:
-        return Icons.style_rounded;
-    }
-  }
-
-  String _getCardCategoryLabel(CardDefinition card) {
-    if (card.effectType == CardEffectType.unlockTileType) {
-      return '🎯 AKTİF TAŞ';
-    }
-    return '⚡ PASİF YETENEK';
   }
 
   @override
@@ -114,9 +57,10 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.center,
-                  radius: 1.2,
+                  radius: 1.3,
                   colors: [
-                    Color(0xFF0B1B3D),
+                    Color(0xFF140D2B),
+                    Color(0xFF09142B),
                     Color(0xFF040711),
                   ],
                 ),
@@ -125,53 +69,60 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
           ),
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFD166).withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFFD166), width: 1.4),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFFD166).withValues(alpha: 0.3),
-                              blurRadius: 12,
+                  // Top Header
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0B1426).withValues(alpha: 0.85),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFD166).withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFFFD166), width: 1.4),
+                          ),
+                          child: const Icon(Icons.style_rounded, color: Color(0xFFFFD166), size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'KART DRAFT SALONU',
+                              style: TextStyle(
+                                color: Color(0xFFFFD166),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            Text(
+                              'Destene Katmak İçin 1 Özel Taş Seç',
+                              style: TextStyle(
+                                color: Colors.white60,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.style_rounded, color: Color(0xFFFFD166), size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'KART DRAFT SALONU',
-                            style: TextStyle(
-                              color: Color(0xFFFFD166),
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          Text(
-                            'Destene 1 Yeni Yetenek / Taş Ekle',
-                            style: TextStyle(
-                              color: Colors.white60,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 16),
+
+                  // 3D Stone Cards Display (Horizontal Layout for zero truncation and non-stretched fit)
                   Expanded(
                     child: ListView.builder(
                       physics: const BouncingScrollPhysics(),
@@ -179,147 +130,26 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
                       itemBuilder: (context, index) {
                         final card = _cards[index];
                         final bool isSelected = _selectedCard?.id == card.id;
-                        final Color tierColor = _getTierColor(card.tier);
-                        final IconData cardIcon = _getCardIcon(card);
-                        final String category = _getCardCategoryLabel(card);
 
                         return Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(22),
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: StoneTileCardWidget(
+                            card: card,
+                            isUnlocked: true,
+                            isSelected: isSelected,
+                            isHorizontal: true,
                             onTap: () {
                               HapticFeedback.selectionClick();
                               setState(() => _selectedCard = card);
                             },
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF0E1F42).withValues(alpha: 0.95)
-                                    : const Color(0xFF081226).withValues(alpha: 0.80),
-                                borderRadius: BorderRadius.circular(22),
-                                border: Border.all(
-                                  color: isSelected ? tierColor : tierColor.withValues(alpha: 0.3),
-                                  width: isSelected ? 2.2 : 1.0,
-                                ),
-                                boxShadow: isSelected
-                                    ? [
-                                        BoxShadow(
-                                          color: tierColor.withValues(alpha: 0.45),
-                                          blurRadius: 18,
-                                          spreadRadius: 2,
-                                        ),
-                                      ]
-                                    : [],
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Container(
-                                    width: 54,
-                                    height: 54,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(16),
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          tierColor.withValues(alpha: 0.4),
-                                          tierColor.withValues(alpha: 0.15),
-                                        ],
-                                      ),
-                                      border: Border.all(color: tierColor, width: 1.6),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: tierColor.withValues(alpha: 0.3),
-                                          blurRadius: 10,
-                                        ),
-                                      ],
-                                    ),
-                                    child: Center(
-                                      child: Icon(
-                                        cardIcon,
-                                        color: isSelected ? Colors.white : tierColor,
-                                        size: 28,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                card.name,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w900,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 6),
-                                            Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: tierColor.withValues(alpha: 0.25),
-                                                borderRadius: BorderRadius.circular(8),
-                                                border: Border.all(color: tierColor, width: 1.0),
-                                              ),
-                                              child: Text(
-                                                _getTierName(card.tier),
-                                                style: TextStyle(
-                                                  color: tierColor,
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          category,
-                                          style: TextStyle(
-                                            color: tierColor.withValues(alpha: 0.9),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          card.description,
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.9),
-                                            fontSize: 11.5,
-                                            fontWeight: FontWeight.w600,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Icon(
-                                    isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                    color: isSelected ? tierColor : Colors.white24,
-                                    size: 22,
-                                  ),
-                                ],
-                              ),
-                            ),
                           ),
                         );
                       },
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Select Button
                   if (_selectedCard != null)
                     SizedBox(
                       width: double.infinity,
@@ -336,11 +166,11 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
                           elevation: 12,
                           shadowColor: _getTierColor(_selectedCard!.tier).withValues(alpha: 0.5),
                         ),
-                        icon: const Icon(Icons.style_rounded, size: 20),
+                        icon: const Icon(Icons.check_circle_rounded, size: 20),
                         label: Text(
-                          '"${_selectedCard!.name.toUpperCase()}" SEÇ VE İLERLE ➔',
+                          '"${_selectedCard!.name.toUpperCase()}" SEÇ VE HARİTAYA DÖN ➔',
                           style: const TextStyle(
-                            fontSize: 13,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.8,
                           ),

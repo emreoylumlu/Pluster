@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../card_pool.dart';
 import '../meta_progress_service.dart';
 import '../roguelike_models.dart';
+import '../widgets/stone_tile_card_widget.dart';
 
 class MetaShopScreen extends StatefulWidget {
   final VoidCallback onClose;
@@ -60,7 +61,7 @@ class _MetaShopScreenState extends State<MetaShopScreen> {
 
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
                 children: [
                   // Top Bar
@@ -106,7 +107,7 @@ class _MetaShopScreenState extends State<MetaShopScreen> {
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'KALICI KART KİLİTLERİ',
+                      'PULSAR MAĞAZASI & KART KİLİTLERİ',
                       style: TextStyle(
                         color: Colors.white70,
                         fontSize: 13,
@@ -117,10 +118,16 @@ class _MetaShopScreenState extends State<MetaShopScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Cards Grid/List
+                  // 2-Column Grid of 3D Stone Cards matching the reference design!
                   Expanded(
-                    child: ListView.builder(
+                    child: GridView.builder(
                       physics: const BouncingScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.65,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
                       itemCount: lockedCards.length,
                       itemBuilder: (context, index) {
                         final card = lockedCards[index];
@@ -128,69 +135,55 @@ class _MetaShopScreenState extends State<MetaShopScreen> {
                         final int cost = card.tier == CardTier.mid ? 60 : 120;
                         final bool canAfford = meta.energyCrystals >= cost;
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isUnlocked
-                                ? const Color(0xFF0D2A1C).withValues(alpha: 0.7)
-                                : Colors.white.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: isUnlocked ? const Color(0xFF00E676) : Colors.white12,
+                        Widget actionBtn;
+                        if (isUnlocked) {
+                          actionBtn = Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF00E676).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFF00E676), width: 0.8),
                             ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 38,
-                                height: 38,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isUnlocked ? const Color(0xFF00E676).withValues(alpha: 0.2) : Colors.white10,
-                                ),
-                                child: Icon(
-                                  isUnlocked ? Icons.check_circle_rounded : Icons.lock_rounded,
-                                  color: isUnlocked ? const Color(0xFF00E676) : Colors.white38,
-                                  size: 20,
-                                ),
+                            child: const Text(
+                              '✅ AÇILDI',
+                              style: TextStyle(
+                                color: Color(0xFF00E676),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      card.name,
-                                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      card.description,
-                                      style: const TextStyle(color: Colors.white54, fontSize: 10),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                          );
+                        } else {
+                          actionBtn = SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: canAfford
+                                  ? () async {
+                                      HapticFeedback.heavyImpact();
+                                      await MetaProgressService.unlockCardPermanently(meta, card.id, cost);
+                                      _loadState();
+                                    }
+                                  : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: canAfford ? const Color(0xFFFFD166) : Colors.white10,
+                                foregroundColor: canAfford ? Colors.black : Colors.white38,
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                elevation: canAfford ? 4 : 0,
                               ),
+                              child: Text(
+                                '$cost 💎 KİLİT AÇ',
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                              ),
+                            ),
+                          );
+                        }
 
-                              if (!isUnlocked)
-                                ElevatedButton(
-                                  onPressed: canAfford
-                                      ? () async {
-                                          HapticFeedback.heavyImpact();
-                                          await MetaProgressService.unlockCardPermanently(meta, card.id, cost);
-                                          _loadState();
-                                        }
-                                      : null,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFFD166),
-                                    foregroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  child: Text('$cost 💎', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-                                ),
-                            ],
-                          ),
+                        return StoneTileCardWidget(
+                          card: card,
+                          isUnlocked: isUnlocked,
+                          isSelected: false,
+                          actionButton: actionBtn,
                         );
                       },
                     ),

@@ -41,12 +41,12 @@ enum NodeType { challenge, luckyRoom, workshop, miniBoss, finalBoss }
 
 class MapNode {
   final String id;
-  final int layer; // 0-tabanlı kat numarası
+  final int layer; // 0-tabanlı satır numarası
   final NodeType type;
-  final List<String> connectedNodeIds; // bir sonraki kata bağlantılar
+  final List<String> connectedNodeIds; // bir sonraki node'lara bağlantılar
   final Map<String, dynamic>? objectiveConfig; // challenge/boss için hedef verisi
+  final int pathIndex; // 0=sol yol, 1=sağ yol, -1=ortak (başlangıç/bitiş)
   bool isCompleted;
-  bool isCurrent;
 
   MapNode({
     required this.id,
@@ -54,9 +54,36 @@ class MapNode {
     required this.type,
     required this.connectedNodeIds,
     this.objectiveConfig,
+    this.pathIndex = -1,
     this.isCompleted = false,
-    this.isCurrent = false,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'layer': layer,
+        'type': type.name,
+        'connectedNodeIds': connectedNodeIds,
+        'objectiveConfig': objectiveConfig,
+        'pathIndex': pathIndex,
+        'isCompleted': isCompleted,
+      };
+
+  factory MapNode.fromJson(Map<String, dynamic> json) {
+    return MapNode(
+      id: json['id'] as String,
+      layer: json['layer'] as int,
+      type: NodeType.values.firstWhere(
+        (value) => value.name == json['type'],
+        orElse: () => NodeType.challenge,
+      ),
+      connectedNodeIds: List<String>.from(json['connectedNodeIds'] ?? const []),
+      objectiveConfig: json['objectiveConfig'] != null
+          ? Map<String, dynamic>.from(json['objectiveConfig'])
+          : null,
+      pathIndex: json['pathIndex'] as int? ?? -1,
+      isCompleted: json['isCompleted'] as bool? ?? false,
+    );
+  }
 }
 
 class RunMap {
@@ -65,12 +92,30 @@ class RunMap {
   final int totalLayers;
 
   RunMap({required this.seed, required this.layers, required this.totalLayers});
+
+  Map<String, dynamic> toJson() => {
+        'seed': seed,
+        'layers': layers.map((layer) => layer.map((node) => node.toJson()).toList()).toList(),
+        'totalLayers': totalLayers,
+      };
+
+  factory RunMap.fromJson(Map<String, dynamic> json) {
+    return RunMap(
+      seed: json['seed'] as String,
+      layers: (json['layers'] as List<dynamic>)
+          .map((layer) => (layer as List<dynamic>)
+              .map((node) => MapNode.fromJson(Map<String, dynamic>.from(node)))
+              .toList())
+          .toList(),
+      totalLayers: json['totalLayers'] as int,
+    );
+  }
 }
 
 // --- Koşu durumu (run-scoped, kalıcı DEĞİL) ---
 
 class RunState {
-  final RunMap map;
+  RunMap map;
   String currentNodeId;
   List<String> unlockedCardIdsThisRun; // koşu içi kazanılan kartlar
   Map<CardEffectType, double> activeModifiers; // pasif kartların birleşik etkisi
@@ -91,6 +136,57 @@ class RunState {
     required this.isAlive,
     this.runIndex = 1,
   });
+
+  void completeNode(MapNode node) {
+    node.isCompleted = true;
+    currentNodeId = node.id;
+    currentLayer = node.layer;
+  }
+
+  Map<String, dynamic> toJson() => {
+        'map': map.toJson(),
+        'currentNodeId': currentNodeId,
+        'unlockedCardIdsThisRun': unlockedCardIdsThisRun,
+        'activeModifiers': {
+          for (final entry in activeModifiers.entries) entry.key.name: entry.value,
+        },
+        'currentLayer': currentLayer,
+        'score': score,
+        'energy': energy,
+        'isAlive': isAlive,
+        'runIndex': runIndex,
+      };
+
+  factory RunState.fromJson(Map<String, dynamic> json) {
+    final map = RunMap.fromJson(Map<String, dynamic>.from(json['map']));
+    final runState = RunState(
+      map: map,
+      currentNodeId: json['currentNodeId'] as String,
+      unlockedCardIdsThisRun: List<String>.from(json['unlockedCardIdsThisRun'] ?? const []),
+      activeModifiers: {
+        for (final entry in (json['activeModifiers'] as Map? ?? {}).entries)
+          CardEffectType.values.firstWhere(
+            (value) => value.name == entry.key,
+            orElse: () => CardEffectType.energyCostMultiplier,
+          ): (entry.value as num).toDouble(),
+      },
+      currentLayer: json['currentLayer'] as int? ?? 0,
+      score: json['score'] as int? ?? 0,
+      energy: (json['energy'] as num?)?.toDouble() ?? 100.0,
+      isAlive: json['isAlive'] as bool? ?? true,
+      runIndex: json['runIndex'] as int? ?? 1,
+    );
+
+    for (final layer in map.layers) {
+      for (final node in layer) {
+        if (node.id == runState.currentNodeId) {
+          break;
+        }
+      }
+    }
+
+    return runState;
+  }
 }
 
 // --- Kalıcı meta ilerleme (Tırmanış Modu'na özel, SharedPreferences ile persist edilir) ---

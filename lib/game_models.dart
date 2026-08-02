@@ -1,6 +1,6 @@
 enum TileType { normal, bomb, multiplier, prism, magnet, crystal, contagion, equalizer }
 
-enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, crystalVein }
+enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, crystalVein, bossCore, bossWeakSpot }
 
 enum GridLayoutType { classic4x4, cross, diamond }
 

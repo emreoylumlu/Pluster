@@ -27,11 +27,17 @@ import 'roguelike/screens/run_summary_screen.dart';
 import 'roguelike/screens/meta_shop_screen.dart';
 import 'roguelike/screens/lucky_room_screen.dart';
 import 'roguelike/screens/workshop_screen.dart';
+import 'roguelike/screens/layer_complete_screen.dart';
+import 'roguelike/screens/boss_intro_screen.dart';
 
 import 'persistence_manager.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
   runApp(const PulseGridApp());
 }
 
@@ -57,11 +63,21 @@ class _PulseGridAppState extends State<PulseGridApp> {
 
   Future<void> _loadSavedData() async {
     final data = await PersistenceManager.loadAllData();
+    final restoredRun = await PersistenceManager.loadActiveRunState();
     if (mounted) {
       setState(() {
         globalHighScore = data.highScore;
         levelStars = data.levelStars;
         currentLanguage = data.language == 'en' ? AppLanguage.en : AppLanguage.tr;
+        if (restoredRun != null) {
+          activeRunState = restoredRun;
+          activeRunNode = null;
+          isShowingMetaShop = false;
+          isShowingCardDraft = false;
+          isShowingRunSummary = false;
+          isShowingLuckyRoom = false;
+          isShowingWorkshop = false;
+        }
       });
     }
   }
@@ -225,34 +241,66 @@ class _PulseGridAppState extends State<PulseGridApp> {
   bool isShowingRunSummary = false;
   bool isShowingLuckyRoom = false;
   bool isShowingWorkshop = false;
+  bool isShowingLayerComplete = false;
+  bool isShowingBossIntro = false;
+  BossType? currentBossIntroType;
+  int currentActNumber = 1;
+  int completedLayerIndex = 0;
   List<rgl.CardDefinition> currentDraftChoices = [];
   int earnedCrystalsLastRun = 0;
 
+  bool _isInitializingRun = false;
+
+  void _completeCurrentRoguelikeNode() {
+    if (activeRunNode != null && activeRunState != null) {
+      activeRunState!.completeNode(activeRunNode!);
+      unawaited(PersistenceManager.saveActiveRunState(activeRunState!));
+    }
+  }
+
+  void _saveActiveRunState() {
+    if (activeRunState != null) {
+      unawaited(PersistenceManager.saveActiveRunState(activeRunState!));
+    }
+  }
+
   void _initNewRoguelikeRun() async {
+    if (_isInitializingRun) return;
+    _isInitializingRun = true;
     final meta = await MetaProgressService.loadMetaProgress();
     meta.totalRunsStarted += 1;
     await MetaProgressService.saveMetaProgress(meta);
 
-    final newMap = MapGenerator.generateMap(seed: DateTime.now().millisecondsSinceEpoch.toString());
-    setState(() {
-      activeRunState = rgl.RunState(
-        map: newMap,
-        currentNodeId: newMap.layers[0][0].id,
-        unlockedCardIdsThisRun: [],
-        activeModifiers: {},
-        currentLayer: 0,
-        score: 0,
-        energy: 100.0,
-        isAlive: true,
-        runIndex: meta.totalRunsStarted,
-      );
-      activeRunNode = null;
-      isShowingMetaShop = false;
-      isShowingCardDraft = false;
-      isShowingRunSummary = false;
-      isShowingLuckyRoom = false;
-      isShowingWorkshop = false;
-    });
+    currentActNumber = 1;
+    final newMap = MapGenerator.generateMapForAct(
+      seed: DateTime.now().millisecondsSinceEpoch.toString(),
+      actNumber: 1,
+    );
+    final newRunState = rgl.RunState(
+      map: newMap,
+      currentNodeId: newMap.layers[0][0].id,
+      unlockedCardIdsThisRun: [],
+      activeModifiers: {},
+      currentLayer: 0,
+      score: 0,
+      energy: 100.0,
+      isAlive: true,
+      runIndex: meta.totalRunsStarted,
+    );
+    if (mounted) {
+      setState(() {
+        activeRunState = newRunState;
+        activeRunNode = null;
+        isShowingMetaShop = false;
+        isShowingCardDraft = false;
+        isShowingRunSummary = false;
+        isShowingLuckyRoom = false;
+        isShowingWorkshop = false;
+        isShowingBossIntro = false;
+        _isInitializingRun = false;
+      });
+    }
+    await PersistenceManager.saveActiveRunState(newRunState);
   }
 
   Widget _buildHomeWidget(BuildContext context) {
@@ -303,8 +351,17 @@ class _PulseGridAppState extends State<PulseGridApp> {
 
     // Tırmanış Modu Akışı
     if (activeMode == GameMode.roguelike) {
-      if (activeRunState == null) {
-        _initNewRoguelikeRun();
+      if (isShowingMetaShop && activeRunState == null) {
+        return MetaShopScreen(
+          onClose: () => setState(() {
+            isShowingMetaShop = false;
+            _initNewRoguelikeRun();
+          }),
+        );
+      }
+
+      if (activeRunState == null || _isInitializingRun) {
+        if (!_isInitializingRun) _initNewRoguelikeRun();
         return const Scaffold(
           backgroundColor: Color(0xFF070C1A),
           body: Center(child: CircularProgressIndicator(color: Color(0xFFFFD166))),
@@ -321,18 +378,36 @@ class _PulseGridAppState extends State<PulseGridApp> {
         return RunSummaryScreen(
           finishedRun: activeRunState!,
           earnedCrystals: earnedCrystalsLastRun,
-          onRetry: () => _initNewRoguelikeRun(),
+          onRetry: () async {
+            await PersistenceManager.clearActiveRun();
+            _initNewRoguelikeRun();
+          },
           onGoToShop: () {
             setState(() {
               isShowingRunSummary = false;
               isShowingMetaShop = true;
+              activeRunState = null;
+              activeRunNode = null;
             });
           },
-          onReturnMainMenu: () {
+          onReturnMainMenu: () async {
+            await PersistenceManager.clearActiveRun();
             setState(() {
               activeMode = null;
               activeRunState = null;
               activeRunNode = null;
+              isShowingRunSummary = false;
+            });
+          },
+        );
+      }
+
+      if (isShowingBossIntro && currentBossIntroType != null) {
+        return BossIntroScreen(
+          bossType: currentBossIntroType!,
+          onStartBattle: () {
+            setState(() {
+              isShowingBossIntro = false;
             });
           },
         );
@@ -346,18 +421,29 @@ class _PulseGridAppState extends State<PulseGridApp> {
               activeRunState!.unlockedCardIdsThisRun.add(chosenCard.id);
               isShowingCardDraft = false;
 
-              // Bir sonraki kata tırman
-              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
-                activeRunState!.currentLayer++;
-              } else {
-                // Koşu Tamamlandı (Zafer!)
-                MetaProgressService.processRunEnd(activeRunState!).then((meta) {
-                  setState(() {
-                    earnedCrystalsLastRun = MetaProgressService.calculateCrystalsEarned(activeRunState!);
-                    isShowingRunSummary = true;
+              // Check if Act final boss was completed
+              if (activeRunNode != null && activeRunNode!.type == rgl.NodeType.finalBoss) {
+                if (currentActNumber < 3) {
+                  currentActNumber++;
+                  final seed = DateTime.now().millisecondsSinceEpoch.toString();
+                  activeRunState!.map = MapGenerator.generateMapForAct(
+                    seed: seed,
+                    actNumber: currentActNumber,
+                  );
+                  activeRunState!.currentNodeId = activeRunState!.map.layers[0][0].id;
+                  activeRunState!.currentLayer = 0;
+                } else {
+                  // Act 3 final victory
+                  MetaProgressService.processRunEnd(activeRunState!).then((meta) {
+                    setState(() {
+                      earnedCrystalsLastRun = MetaProgressService.calculateCrystalsEarned(activeRunState!);
+                      isShowingRunSummary = true;
+                    });
                   });
-                });
+                }
               }
+              activeRunNode = null;
+              _saveActiveRunState();
             });
           },
         );
@@ -368,12 +454,12 @@ class _PulseGridAppState extends State<PulseGridApp> {
           runState: activeRunState!,
           onCompleted: () {
             setState(() {
-              if (activeRunNode != null) activeRunNode!.isCompleted = true;
-              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
-                activeRunState!.currentLayer++;
-              }
+              _completeCurrentRoguelikeNode();
               activeRunNode = null;
               isShowingLuckyRoom = false;
+              completedLayerIndex = activeRunState?.currentLayer ?? 0;
+              isShowingLayerComplete = true;
+              _saveActiveRunState();
             });
           },
         );
@@ -384,13 +470,35 @@ class _PulseGridAppState extends State<PulseGridApp> {
           runState: activeRunState!,
           onCompleted: () {
             setState(() {
-              if (activeRunNode != null) activeRunNode!.isCompleted = true;
-              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
-                activeRunState!.currentLayer++;
-              }
+              _completeCurrentRoguelikeNode();
               activeRunNode = null;
               isShowingWorkshop = false;
+              completedLayerIndex = activeRunState?.currentLayer ?? 0;
+              isShowingLayerComplete = true;
+              _saveActiveRunState();
             });
+          },
+        );
+      }
+
+      if (isShowingLayerComplete) {
+        return LayerCompleteScreen(
+          runState: activeRunState!,
+          completedLayer: completedLayerIndex,
+          buttonLabel: currentDraftChoices.isNotEmpty ? 'KART ÖDÜLÜNÜ SEÇ ➔' : 'HARİTAYA DÖN VE YOL SEÇ ➔',
+          onContinue: () async {
+            if (currentDraftChoices.isNotEmpty) {
+              setState(() {
+                isShowingLayerComplete = false;
+                isShowingCardDraft = true;
+                _saveActiveRunState();
+              });
+            } else {
+              setState(() {
+                isShowingLayerComplete = false;
+                _saveActiveRunState();
+              });
+            }
           },
         );
       }
@@ -406,6 +514,25 @@ class _PulseGridAppState extends State<PulseGridApp> {
               setState(() => isShowingLuckyRoom = true);
             } else if (node.type == rgl.NodeType.workshop) {
               setState(() => isShowingWorkshop = true);
+            } else if (node.type == rgl.NodeType.miniBoss || node.type == rgl.NodeType.finalBoss) {
+              BossType bType;
+              if (node.type == rgl.NodeType.miniBoss) {
+                bType = currentActNumber == 1 ? BossType.chaosMiniBoss : BossType.corruptedTileMiniBoss;
+              } else {
+                bType = currentActNumber == 1 ? BossType.hydraCoreFinalBoss : BossType.chronosPulsarFinalBoss;
+              }
+
+              final meta = await MetaProgressService.loadMetaProgress();
+              final choices = CardDraftService.rollChoices(
+                count: 3,
+                currentLayer: activeRunState!.currentLayer,
+                meta: meta,
+              );
+              setState(() {
+                currentDraftChoices = choices;
+                currentBossIntroType = bType;
+                isShowingBossIntro = true;
+              });
             } else {
               final meta = await MetaProgressService.loadMetaProgress();
               final choices = CardDraftService.rollChoices(
@@ -420,6 +547,14 @@ class _PulseGridAppState extends State<PulseGridApp> {
           },
           onOpenMetaShop: () {
             setState(() => isShowingMetaShop = true);
+          },
+          onReturnToMainMenu: () async {
+            await PersistenceManager.clearActiveRun();
+            setState(() {
+              activeMode = null;
+              activeRunState = null;
+              activeRunNode = null;
+            });
           },
         );
       }
@@ -439,9 +574,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
       roguelikeRunNode: activeRunNode,
       roguelikeRunState: activeRunState,
       onRoguelikeNodeWin: () async {
-        if (activeRunNode != null) {
-          activeRunNode!.isCompleted = true;
-        }
+        _completeCurrentRoguelikeNode();
         if (activeRunState != null) {
           activeRunState!.score += 500;
         }
@@ -452,9 +585,10 @@ class _PulseGridAppState extends State<PulseGridApp> {
           meta: meta,
         );
         setState(() {
-          activeRunNode = null;
+          completedLayerIndex = activeRunState?.currentLayer ?? 0;
           currentDraftChoices = choices;
-          isShowingCardDraft = true;
+          isShowingLayerComplete = true;
+          _saveActiveRunState();
         });
       },
       onRoguelikeRunFail: (finalScore) async {
@@ -462,6 +596,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
           activeRunState!.isAlive = false;
           activeRunState!.score += finalScore;
           await MetaProgressService.processRunEnd(activeRunState!);
+          await PersistenceManager.clearActiveRun();
           setState(() {
             earnedCrystalsLastRun = MetaProgressService.calculateCrystalsEarned(activeRunState!);
             activeRunNode = null;
@@ -469,7 +604,8 @@ class _PulseGridAppState extends State<PulseGridApp> {
           });
         }
       },
-      onBackToMenu: () {
+      onBackToMenu: () async {
+        await PersistenceManager.clearActiveRun();
         setState(() {
           activeMode = null;
           selectedLevel = null;
@@ -584,6 +720,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   bool isObjectivesExpanded = false;
   bool isRoguelikePanelExpanded = false;
 
+  // ── Boss Stage Tracking ──────────────────────
+  bool isBossStage = false;
+  String bossType = ''; // 'shield_core', 'weak_spot', 'apex_boss'
+  String bossName = '';
+  String bossDesc = '';
+  int bossHp = 0;
+  int bossMaxHp = 0;
+  List<_Point> bossCoreCells = [];
+  _Point? weakSpotPoint;
+  int bossActionCounter = 0;
+  bool isBossEnraged = false;
+
   late RoguelikeRunState roguelikeRunState;
   bool isShowingDraftModal = false;
   int roguelikeTurnCount = 0;
@@ -604,6 +752,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       duration: const Duration(milliseconds: 240),
     );
 
+    roguelikeRunState = RoguelikeRunState();
     _initGame();
   }
 
@@ -637,7 +786,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   void _checkRoguelikeDraftTrigger() {
     if (!mounted) return;
-    if (energy <= 0 || isGameOver || isLevelFailed) return;
+    if (energy <= 0 || isGameOver || isLevelFailed || isBossStage) return;
 
     if (widget.mode == GameMode.roguelike && !isShowingDraftModal) {
       final int targetScore = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
@@ -788,6 +937,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       info = '🌋 MAGMA HÜCRESİ: 4 tur patlatılmazsa taşlaşır ama 2.5x Skor verir!';
     } else if (cell.specialType == CellSpecialType.crystalVein) {
       info = '💎 KRİSTAL DAMARI: Patladığında ekstra +20 Pulsar Kristali verir!';
+    } else if (cell.specialType == CellSpecialType.bossCore) {
+      info = '👾 BOSS ÇEKİRDEĞİ: Etrafındaki komşu hücrelerde patlama yaparak Canını ($bossHp/$bossMaxHp HP) düşür!';
+    } else if (cell.specialType == CellSpecialType.bossWeakSpot) {
+      info = '🎯 ZAYIF NOKTA: Bu hücrede patlama yaparsan Boss 3 KAT Hasar (3 HP) alır!';
     } else if (cell.specialType == CellSpecialType.locked) {
       info = '🔒 KİLİTLİ ENGEL: Sürüklenemez. Etrafındaki patlama dalgasıyla kırılır!';
     } else if (cell.isMultiplier) {
@@ -811,18 +964,87 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     });
   }
 
+  void _updateWeakSpotCell() {
+    final List<_Point> candidates = [
+      _Point(0, 1), _Point(0, 2),
+      _Point(1, 0), _Point(2, 0),
+      _Point(1, 3), _Point(2, 3),
+      _Point(3, 1), _Point(3, 2),
+    ];
+
+    if (weakSpotPoint != null &&
+        grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType == CellSpecialType.bossWeakSpot) {
+      grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType = CellSpecialType.none;
+    }
+
+    final valid = candidates.where((pt) =>
+      grid[pt.r][pt.c].specialType != CellSpecialType.locked &&
+      grid[pt.r][pt.c].specialType != CellSpecialType.bossCore
+    ).toList();
+
+    if (valid.isNotEmpty) {
+      weakSpotPoint = valid[Random().nextInt(valid.length)];
+      grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType = CellSpecialType.bossWeakSpot;
+    }
+  }
+
+  void _syncRoguelikeEnergy() {
+    if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+      widget.roguelikeRunState!.energy = energy.clamp(0.0, 100.0);
+    }
+  }
+
   void _initGame() {
     final level = widget.level;
+    final rNode = widget.roguelikeRunNode;
+
     setState(() {
       isShowingDraftModal = false;
       roguelikeTurnCount = 0;
       grid = List.generate(4, (_) => List.generate(4, (_) => CellData()));
-      _assignRandomSpecialCells();
+
+      // Boss kontrolü ve kurulumu
+      if (widget.mode == GameMode.roguelike && rNode != null &&
+          (rNode.type == rgl.NodeType.miniBoss || rNode.type == rgl.NodeType.finalBoss)) {
+        isBossStage = true;
+        final config = rNode.objectiveConfig ?? {};
+        bossType = config['bossType'] as String? ?? 'shield_core';
+        bossName = config['bossName'] as String? ?? (rNode.type == rgl.NodeType.finalBoss ? 'EFSANEVİ KRİZ ÇEKİRDEĞİ' : 'ŞOK ÇEKİRDEĞİ');
+        bossDesc = config['bossDesc'] as String? ?? 'Etrafında patlama yaparak Boss\'un Canını düşür!';
+        bossMaxHp = config['bossHp'] as int? ?? 10;
+        bossHp = bossMaxHp;
+        bossActionCounter = 0;
+        isBossEnraged = false;
+
+        // Grid merkezindeki 2x2 hücreleri Boss Çekirdeği yap
+        bossCoreCells = [_Point(1, 1), _Point(1, 2), _Point(2, 1), _Point(2, 2)];
+        for (var pt in bossCoreCells) {
+          grid[pt.r][pt.c].specialType = CellSpecialType.bossCore;
+          grid[pt.r][pt.c].value = 0;
+        }
+
+        if (bossType == 'weak_spot') {
+          _updateWeakSpotCell();
+        }
+      } else {
+        isBossStage = false;
+        bossCoreCells = [];
+        weakSpotPoint = null;
+        _assignRandomSpecialCells();
+      }
+
       spawnSlots = List.generate(3, (_) => _generateRandomTile());
       if (level != null) _applyLevelSpawnForces(level);
       score = 0;
       highScore = widget.initialHighScore;
-      energy = level?.constraints?.startEnergy ?? 100.0;
+      
+      // Tırmanış modunda enerjiyi önceki bölümden aktar!
+      if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+        energy = widget.roguelikeRunState!.energy.clamp(5.0, 100.0);
+      } else {
+        energy = level?.constraints?.startEnergy ?? 100.0;
+      }
+      _syncRoguelikeEnergy();
       explosionsCount = 0;
       maxCombo = 0;
       overloadCharges = (level?.constraints?.noOverload ?? false) ? 0 : 2;
@@ -940,8 +1162,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       int roll = Random().nextInt(100);
 
-      // 40% chance to draw a special unlocked tile from deck pool!
-      if (roll < 40 && specialTypes.isNotEmpty) {
+      // Dengeli Özel Taş İhtimali (%12)
+      if (roll < 12 && specialTypes.isNotEmpty) {
         final chosenType = specialTypes[Random().nextInt(specialTypes.length)];
         switch (chosenType) {
           case TileType.bomb:
@@ -1923,9 +2145,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                             color: Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(16),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
+                            children: [
                               Icon(
                                 Icons.keyboard_arrow_up_rounded,
                                 color: Colors.white70,
@@ -1950,11 +2172,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final isEn = widget.currentLanguage == AppLanguage.en;
     final int floor = (widget.roguelikeRunState?.currentLayer ?? 0) + 1;
     final int target = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
-    final double scoreProgress = (score / (target > 0 ? target : 1)).clamp(0.0, 1.0);
+    final double scoreProgress = isBossStage
+        ? (bossMaxHp > 0 ? (bossHp / bossMaxHp).clamp(0.0, 1.0) : 0.0)
+        : (score / (target > 0 ? target : 1)).clamp(0.0, 1.0);
     final int scorePercent = (scoreProgress * 100).toInt();
 
     final List<String> activeCardIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
-    final mod = roguelikeRunState.currentModifier;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
@@ -1966,145 +2189,146 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         child: GlassCard(
           borderRadius: BorderRadius.circular(18),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Floor Badge ("KAT X") matching user mockup!
-              Container(
-                width: 42,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF091428),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: const Color(0xFF00E676).withValues(alpha: 0.7),
-                    width: 1.2,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      isEn ? 'FLOOR' : 'KAT',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 8,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
+              Row(
+                children: [
+                  // 1. Floor / Boss Badge
+                  Container(
+                    width: isBossStage ? 48 : 42,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isBossStage ? const Color(0xFF3A000F) : const Color(0xFF091428),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isBossStage ? const Color(0xFFFF5252) : const Color(0xFF00E676).withValues(alpha: 0.7),
+                        width: 1.2,
                       ),
                     ),
-                    Text(
-                      '$floor',
-                      style: const TextStyle(
-                        color: Color(0xFF00E676),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w900,
-                        height: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-
-              // 2. Score Target & Neon Progress Bar
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '$score / $target',
-                          style: const TextStyle(
-                            color: Color(0xFF00E676),
-                            fontSize: 11,
+                          isBossStage ? 'BOSS' : (isEn ? 'FLOOR' : 'KAT'),
+                          style: TextStyle(
+                            color: isBossStage ? const Color(0xFFFF5252) : Colors.white.withValues(alpha: 0.6),
+                            fontSize: 7.5,
                             fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
                           ),
                         ),
                         Text(
-                          '%$scorePercent',
+                          isBossStage ? '👾' : '$floor',
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.7),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
+                            color: isBossStage ? const Color(0xFFFFD166) : const Color(0xFF00E676),
+                            fontSize: isBossStage ? 12 : 14,
+                            fontWeight: FontWeight.w900,
+                            height: 1.0,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: scoreProgress,
-                        minHeight: 5,
-                        backgroundColor: Colors.white.withValues(alpha: 0.1),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          scoreProgress >= 1.0 ? const Color(0xFF00E676) : const Color(0xFF00BFA5),
+                  ),
+                  const SizedBox(width: 8),
+
+                  // 2. Score Target or Boss HP Progress Bar
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isBossStage ? '$bossName ($bossHp/$bossMaxHp HP)' : '$score / $target',
+                              style: TextStyle(
+                                color: isBossStage ? const Color(0xFFFF5252) : const Color(0xFF00E676),
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w900,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              '%$scorePercent',
+                              style: TextStyle(
+                                color: isBossStage ? const Color(0xFFFFD166) : Colors.white.withValues(alpha: 0.7),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: scoreProgress,
+                            minHeight: 6,
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isBossStage
+                                  ? (isBossEnraged ? const Color(0xFFFF1744) : const Color(0xFFFF5252))
+                                  : (scoreProgress >= 1.0 ? const Color(0xFF00E676) : const Color(0xFF00BFA5)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
+                  ),
+                  const SizedBox(width: 8),
 
-              // Vertical Divider
-              Container(width: 1, height: 26, color: Colors.white12),
-              const SizedBox(width: 8),
+                  // Vertical Divider
+                  Container(width: 1, height: 26, color: Colors.white12),
+                  const SizedBox(width: 8),
 
-              // 3. Draft Cards Summary Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF4081).withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(9),
-                  border: Border.all(color: const Color(0xFFFF4081), width: 1.0),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.style_rounded, size: 12, color: Color(0xFFFF4081)),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${activeCardIds.length}',
-                      style: const TextStyle(
-                        color: Color(0xFFFF4081),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  // 3. Draft Cards Summary Badge
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF4081).withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: const Color(0xFFFF4081), width: 1.0),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.style_rounded, size: 12, color: Color(0xFFFF4081)),
+                        const SizedBox(width: 3),
+                        Text(
+                          '${activeCardIds.length}',
+                          style: const TextStyle(
+                            color: Color(0xFFFF4081),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (isRoguelikePanelExpanded && isBossStage) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2A000A).withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    bossDesc,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD166),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 6),
-
-              // Vertical Divider
-              Container(width: 1, height: 26, color: Colors.white12),
-              const SizedBox(width: 6),
-
-              // 4. Modifier / Relic Icon Badge
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: mod.color.withValues(alpha: 0.2),
-                  border: Border.all(color: mod.color, width: 1.2),
-                ),
-                child: Icon(mod.icon, size: 14, color: mod.color),
-              ),
-              const SizedBox(width: 6),
-
-              // 5. Expand Toggle Chevron
-              Icon(
-                isRoguelikePanelExpanded
-                    ? Icons.keyboard_arrow_up_rounded
-                    : Icons.keyboard_arrow_down_rounded,
-                color: Colors.white70,
-                size: 22,
-              ),
+              ],
             ],
           ),
         ),
@@ -3023,7 +3247,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   double _getTileEnergyCost(TileData tile) {
-    if (tile.type == TileType.prism) return 0.0;
+    if (tile.type == TileType.prism) return 8.0;
+    if (tile.type == TileType.magnet) return 10.0;
     double cost = (tile.type == TileType.multiplier) ? 15.0 : (tile.value * 6.0);
     if (widget.mode == GameMode.endless && score >= 2000) {
       cost += 2.0; // High score energy pressure
@@ -3092,20 +3317,68 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         _Point(r, c - 1),
         _Point(r, c + 1),
       ];
-      bool explodeAny = false;
+      List<_Point> explodingNeighbors = [];
       setState(() {
         for (var n in neighbors) {
           if (n.r >= 0 && n.r < 4 && n.c >= 0 && n.c < 4) {
             if (grid[n.r][n.c].value > 0) {
               grid[n.r][n.c].value = (grid[n.r][n.c].value + 1).clamp(1, 8);
-              if (grid[n.r][n.c].value >= 8) explodeAny = true;
+              if (grid[n.r][n.c].value >= 8) {
+                explodingNeighbors.add(n);
+              }
             }
           }
         }
       });
       _showEnergyFloatingText('💎 PRİZMA: +1 PULSE DÖNÜŞÜMÜ!');
       _triggerScorePulse();
-      if (explodeAny) {
+      for (var ep in explodingNeighbors) {
+        await _processPulseQueue(ep.r, ep.c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.magnet) {
+      HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+
+      bool willExplodeMagnet = false;
+      int pulledCount = 0;
+
+      setState(() {
+        final int targetVal = grid[r][c].value > 0 ? grid[r][c].value : (tile.value > 0 ? tile.value : 2);
+        grid[r][c].value = targetVal;
+
+        for (int row = 0; row < 4; row++) {
+          for (int col = 0; col < 4; col++) {
+            if (row == r && col == c) continue;
+            final cell = grid[row][col];
+            if (cell.value == targetVal &&
+                cell.specialType != CellSpecialType.bossCore &&
+                cell.specialType != CellSpecialType.locked) {
+              grid[r][c].value = (grid[r][c].value + cell.value).clamp(1, 8);
+              cell.value = 0;
+              cell.isMultiplier = false;
+              cell.specialType = CellSpecialType.none;
+              pulledCount++;
+            }
+          }
+        }
+
+        if (grid[r][c].value >= 8) {
+          willExplodeMagnet = true;
+        }
+      });
+
+      if (pulledCount > 0) {
+        _showEnergyFloatingText('🧲 MIKNATIS: $pulledCount TAŞ ÇEKİLDİ VE BİRLEŞTİ!');
+      } else {
+        _showEnergyFloatingText('🧲 MIKNATIS: AYNI DEĞERDE TAŞ BULUNAMADI!');
+      }
+      _triggerScorePulse();
+
+      if (willExplodeMagnet) {
         await _processPulseQueue(r, c);
       }
       if (level != null) _checkLevelObjectives();
@@ -3128,6 +3401,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         _showEnergyFloatingText('-${cost.toInt()}⚡');
         _triggerEnergyPulse(false);
       }
+      _syncRoguelikeEnergy();
     });
 
     _triggerScorePulse();
@@ -3161,6 +3435,35 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       final int interval = roguelikeRunState.currentModifier.stoneCurseInterval;
       if (interval > 0 && roguelikeTurnCount % interval == 0) {
         _applyStoneCurse();
+      }
+
+      // ── Boss Karşı Saldırı Mantığı ──
+      if (isBossStage && bossHp > 0) {
+        bossActionCounter++;
+        if (bossType == 'shield_core') {
+          if (bossActionCounter % 3 == 0) {
+            _applyStoneCurse();
+            _showEnergyFloatingText('🛡️ BOSS: KİLİT SALDIRISI!');
+          }
+        } else if (bossType == 'weak_spot') {
+          if (bossActionCounter % 2 == 0) {
+            _updateWeakSpotCell();
+            _showEnergyFloatingText('🎯 ZAYIF NOKTA DEĞİŞTİ!');
+          }
+        } else if (bossType == 'apex_boss') {
+          if (isBossEnraged) {
+            if (bossActionCounter % 2 == 0) {
+              _applyStoneCurse();
+              energy = (energy - 5.0).clamp(0.0, 100.0);
+              _showEnergyFloatingText('🔥 ÖFKE SALDIRISI! -5 ENERJİ');
+            }
+          } else {
+            if (bossActionCounter % 3 == 0) {
+              _applyStoneCurse();
+              _showEnergyFloatingText('⚡ BOSS: KİLİT SALDIRISI!');
+            }
+          }
+        }
       }
     }
 
@@ -3324,6 +3627,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
         grid[r][c].floatingText = '+$basePoints$tag';
         energy = (energy + energyGained).clamp(0.0, 100.0);
+        _syncRoguelikeEnergy();
       });
 
       _showEnergyFloatingText('+${energyGained.toInt()}⚡');
@@ -3377,8 +3681,74 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       int wavePower = wasMultiplier ? 2 : 1;
 
+      // ── Boss Hasar Mantığı ──
+      if (isBossStage && bossHp > 0) {
+        bool touchesBoss = false;
+        for (var bc in bossCoreCells) {
+          if ((bc.r - r).abs() + (bc.c - c).abs() == 1) {
+            touchesBoss = true;
+            break;
+          }
+        }
+
+        if (touchesBoss) {
+          int damage = 1;
+          String dmgTag = '💥 BOSS -1 HP';
+
+          if (currentSpecial == CellSpecialType.bossWeakSpot ||
+              (weakSpotPoint != null && weakSpotPoint!.r == r && weakSpotPoint!.c == c)) {
+            damage = 3;
+            dmgTag = '🎯 ZAYIF NOKTA! -3 HP';
+            HapticFeedback.vibrate();
+          } else if (wasMultiplier || currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal) {
+            damage = 2;
+            dmgTag = '⚡ KRİTİK HİT! -2 HP';
+          }
+
+          setState(() {
+            bossHp = (bossHp - damage).clamp(0, bossMaxHp);
+          });
+          _showEnergyFloatingText(dmgTag);
+          _triggerScreenShake();
+
+          // Apex Boss Faz 2 (Öfke Modu) Geçişi
+          if (bossType == 'apex_boss' && bossHp <= bossMaxHp ~/ 2 && !isBossEnraged) {
+            setState(() => isBossEnraged = true);
+            _showEnergyFloatingText('🔥 ÖFKE MODU! BOSS SALDIRIYOR!');
+            _applyStoneCurse();
+          }
+
+          // Boss Yenildi Mantığı
+          if (bossHp <= 0) {
+            _showEnergyFloatingText('🏆 BOSS BOZGUN A UĞRATILDI!');
+            HapticFeedback.vibrate();
+            _triggerScreenShake();
+
+            // Boss hücrelerini temizle
+            setState(() {
+              for (var bc in bossCoreCells) {
+                grid[bc.r][bc.c].specialType = CellSpecialType.none;
+              }
+              if (weakSpotPoint != null) {
+                grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType = CellSpecialType.none;
+                weakSpotPoint = null;
+              }
+            });
+
+            // Kazanma ekranını tetikle
+            Future.delayed(const Duration(milliseconds: 600), () {
+              if (mounted && widget.onRoguelikeNodeWin != null) {
+                widget.onRoguelikeNodeWin?.call();
+              }
+            });
+          }
+        }
+      }
+
       for (var n in neighbors) {
         if (n.r >= 0 && n.r < 4 && n.c >= 0 && n.c < 4) {
+          if (grid[n.r][n.c].specialType == CellSpecialType.bossCore) continue; // Boss hücresine sayı verilmez
+
           setState(() {
             if (grid[n.r][n.c].specialType == CellSpecialType.locked) {
               grid[n.r][n.c].specialType = CellSpecialType.none;

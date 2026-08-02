@@ -1,100 +1,201 @@
 import 'dart:math';
 import 'roguelike_models.dart';
+import 'screens/boss_intro_screen.dart';
 
 class MapGenerator {
-  static RunMap generateMap({required String seed, int totalLayers = 7}) {
-    final rand = Random(seed.hashCode);
+  /// Slay the Spire tarzı 3-4 şeritli, çapraz bağlantılı ve çoklu Act destekli harita üretir.
+  ///
+  /// Act 1 (Siber Yükseliş): Kat 8 Kaos Bossu, Kat 15 Hydra-Core Bossu.
+  /// Act 2 (Kozmik Karanlık): Kat 8 Bozuk Veri Bossu, Kat 15 Chronos-Pulsar Bossu.
+  /// Act 3 (Nihai Abyss): Kat 8 Şok Çekirdeği, Kat 15 Nihai Karadelik.
+  static RunMap generateMapForAct({required String seed, required int actNumber}) {
+    final rand = Random('$seed-$actNumber'.hashCode);
     final List<List<MapNode>> layers = [];
+    final int totalLayers = 15;
 
-    for (int layerIdx = 0; layerIdx < totalLayers; layerIdx++) {
-      final List<MapNode> currentLayerNodes = [];
+    final BossType actMiniBoss = actNumber == 1
+        ? BossType.chaosMiniBoss
+        : (actNumber == 2 ? BossType.corruptedTileMiniBoss : BossType.chaosMiniBoss);
 
-      // Düğüm sayısı belirleme
-      int nodeCount;
-      if (layerIdx == totalLayers - 1) {
-        nodeCount = 1; // Final Boss katı tek düğüm
-      } else if (layerIdx == 4) {
-        nodeCount = 1; // Mini Boss katı tek düğüm
-      } else if (layerIdx < 3) {
-        nodeCount = rand.nextInt(2) + 3; // 3-4 düğüm
-      } else {
-        nodeCount = rand.nextInt(2) + 2; // 2-3 düğüm
-      }
+    final BossType actFinalBoss = actNumber == 1
+        ? BossType.hydraCoreFinalBoss
+        : (actNumber == 2 ? BossType.chronosPulsarFinalBoss : BossType.chronosPulsarFinalBoss);
 
-      for (int nodeIdx = 0; nodeIdx < nodeCount; nodeIdx++) {
-        final String nodeId = 'node_${layerIdx}_$nodeIdx';
+    // ── Row 0: Başlangıç Node'u ──
+    final startNode = MapNode(
+      id: 'act_${actNumber}_start',
+      layer: 0,
+      type: NodeType.challenge,
+      connectedNodeIds: ['act_${actNumber}_n1_0', 'act_${actNumber}_n1_1'],
+      objectiveConfig: {
+        'targetScore': 600 + (actNumber - 1) * 300,
+        'moveLimit': 22,
+      },
+      pathIndex: -1,
+    );
+    layers.add([startNode]);
 
-        // Düğüm tipi belirleme
-        NodeType type;
-        if (layerIdx == totalLayers - 1) {
-          type = NodeType.finalBoss;
-        } else if (layerIdx == 4) {
-          type = NodeType.miniBoss;
-        } else if (layerIdx == 0) {
-          type = NodeType.challenge; // İlk kat her zaman normal mücadele
+    // ── Row 1..6: İlk Bölüm Yolları ──
+    for (int layerIdx = 1; layerIdx <= 6; layerIdx++) {
+      final List<MapNode> layerNodes = [];
+      final int nodeCount = (layerIdx == 2 || layerIdx == 4) ? 3 : 2;
+
+      for (int i = 0; i < nodeCount; i++) {
+        final NodeType type = _getRandomNodeTypeForLayer(rand, layerIdx);
+        final String nodeId = 'act_${actNumber}_n${layerIdx}_$i';
+
+        // Connect to next layer
+        final List<String> nextConnections = [];
+        if (layerIdx == 6) {
+          nextConnections.add('act_${actNumber}_miniboss');
         } else {
-          final roll = rand.nextDouble();
-          if (roll < 0.50) {
-            type = NodeType.challenge;
-          } else if (roll < 0.75) {
-            type = NodeType.luckyRoom;
+          final int nextNodeCount = (layerIdx + 1 == 2 || layerIdx + 1 == 4) ? 3 : 2;
+          if (nodeCount == 2 && nextNodeCount == 3) {
+            if (i == 0) {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_0', 'act_${actNumber}_n${layerIdx + 1}_1']);
+            } else {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_1', 'act_${actNumber}_n${layerIdx + 1}_2']);
+            }
+          } else if (nodeCount == 3 && nextNodeCount == 2) {
+            if (i == 0) {
+              nextConnections.add('act_${actNumber}_n${layerIdx + 1}_0');
+            } else if (i == 1) {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_0', 'act_${actNumber}_n${layerIdx + 1}_1']);
+            } else {
+              nextConnections.add('act_${actNumber}_n${layerIdx + 1}_1');
+            }
           } else {
-            type = NodeType.workshop;
+            nextConnections.add('act_${actNumber}_n${layerIdx + 1}_$i');
           }
         }
 
-        // Hedef konfigürasyonu (Challenge/Boss için hedef skor)
-        final Map<String, dynamic> objectiveConfig = {
-          'targetScore': (layerIdx + 1) * 600 + (type == NodeType.miniBoss ? 1500 : (type == NodeType.finalBoss ? 4000 : 0)),
-          'moveLimit': type == NodeType.finalBoss ? 30 : (type == NodeType.miniBoss ? 25 : 20),
-        };
-
-        currentLayerNodes.add(
+        layerNodes.add(
           MapNode(
             id: nodeId,
             layer: layerIdx,
             type: type,
-            connectedNodeIds: [],
-            objectiveConfig: objectiveConfig,
-            isCompleted: false,
-            isCurrent: layerIdx == 0 && nodeIdx == 0,
+            connectedNodeIds: nextConnections,
+            objectiveConfig: _buildObjectiveConfig(layerIdx, type, actNumber),
+            pathIndex: i,
           ),
         );
       }
-      layers.add(currentLayerNodes);
+      layers.add(layerNodes);
     }
 
-    // Katlar arası bağlantıları kur (Düğümleri bir sonraki katın düğümlerine bağla)
-    for (int l = 0; l < totalLayers - 1; l++) {
-      final currentNodes = layers[l];
-      final nextNodes = layers[l + 1];
+    // ── Row 7: MİNİ BOSS DÜĞÜMÜ (Kat 8) ──
+    final miniBossNode = MapNode(
+      id: 'act_${actNumber}_miniboss',
+      layer: 7,
+      type: NodeType.miniBoss,
+      connectedNodeIds: ['act_${actNumber}_n8_0', 'act_${actNumber}_n8_1'],
+      objectiveConfig: {
+        'bossTypeEnum': actMiniBoss.name,
+        'targetScore': actNumber == 1 ? 1600 : 2000,
+        'moveLimit': 25,
+      },
+      pathIndex: -1,
+    );
+    layers.add([miniBossNode]);
 
-      for (int i = 0; i < currentNodes.length; i++) {
-        final node = currentNodes[i];
+    // ── Row 8..13: İkinci Bölüm Yolları ──
+    for (int layerIdx = 8; layerIdx <= 13; layerIdx++) {
+      final List<MapNode> layerNodes = [];
+      final int nodeCount = (layerIdx == 9 || layerIdx == 11) ? 3 : 2;
 
-        if (nextNodes.length == 1) {
-          // Sonraki kat Boss katıysa hepsi tek boss'a bağlanır
-          node.connectedNodeIds.add(nextNodes[0].id);
+      for (int i = 0; i < nodeCount; i++) {
+        final NodeType type = _getRandomNodeTypeForLayer(rand, layerIdx);
+        final String nodeId = 'act_${actNumber}_n${layerIdx}_$i';
+
+        final List<String> nextConnections = [];
+        if (layerIdx == 13) {
+          nextConnections.add('act_${actNumber}_prep');
         } else {
-          // Normal geçişlerde en yakın 1-2 düğüme bağlanır
-          final int primaryNextIdx = ((i / currentNodes.length) * nextNodes.length).floor().clamp(0, nextNodes.length - 1);
-          node.connectedNodeIds.add(nextNodes[primaryNextIdx].id);
-
-          // Rastgele %50 ihtimalle komşu düğüme de bağla (dallanma seçeneği)
-          if (nextNodes.length > 1 && rand.nextBool()) {
-            final int secondaryNextIdx = (primaryNextIdx + 1) % nextNodes.length;
-            if (!node.connectedNodeIds.contains(nextNodes[secondaryNextIdx].id)) {
-              node.connectedNodeIds.add(nextNodes[secondaryNextIdx].id);
+          final int nextNodeCount = (layerIdx + 1 == 9 || layerIdx + 1 == 11) ? 3 : 2;
+          if (nodeCount == 2 && nextNodeCount == 3) {
+            if (i == 0) {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_0', 'act_${actNumber}_n${layerIdx + 1}_1']);
+            } else {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_1', 'act_${actNumber}_n${layerIdx + 1}_2']);
             }
+          } else if (nodeCount == 3 && nextNodeCount == 2) {
+            if (i == 0) {
+              nextConnections.add('act_${actNumber}_n${layerIdx + 1}_0');
+            } else if (i == 1) {
+              nextConnections.addAll(['act_${actNumber}_n${layerIdx + 1}_0', 'act_${actNumber}_n${layerIdx + 1}_1']);
+            } else {
+              nextConnections.add('act_${actNumber}_n${layerIdx + 1}_1');
+            }
+          } else {
+            nextConnections.add('act_${actNumber}_n${layerIdx + 1}_$i');
           }
         }
+
+        layerNodes.add(
+          MapNode(
+            id: nodeId,
+            layer: layerIdx,
+            type: type,
+            connectedNodeIds: nextConnections,
+            objectiveConfig: _buildObjectiveConfig(layerIdx, type, actNumber),
+            pathIndex: i,
+          ),
+        );
       }
+      layers.add(layerNodes);
     }
+
+    // ── Row 14: Hazırlık / Şans Düğümü ──
+    final prepNode = MapNode(
+      id: 'act_${actNumber}_prep',
+      layer: 14,
+      type: NodeType.workshop,
+      connectedNodeIds: ['act_${actNumber}_finalboss'],
+      objectiveConfig: _buildObjectiveConfig(14, NodeType.workshop, actNumber),
+      pathIndex: -1,
+    );
+    layers.add([prepNode]);
+
+    // ── Row 15: ACT NİHAİ BOSS DÜĞÜMÜ ──
+    final finalBossNode = MapNode(
+      id: 'act_${actNumber}_finalboss',
+      layer: 15,
+      type: NodeType.finalBoss,
+      connectedNodeIds: [],
+      objectiveConfig: {
+        'bossTypeEnum': actFinalBoss.name,
+        'targetScore': actNumber == 1 ? 1000 : 2500, // HP for final boss
+        'moveLimit': 35,
+      },
+      pathIndex: -1,
+    );
+    layers.add([finalBossNode]);
 
     return RunMap(
       seed: seed,
       layers: layers,
       totalLayers: totalLayers,
     );
+  }
+
+  static NodeType _getRandomNodeTypeForLayer(Random rand, int layer) {
+    // 🛠️ Garanti Dinlenme Yerleri (Atölye / Rest Sites)
+    if (layer == 4 || layer == 6 || layer == 10) {
+      return NodeType.workshop;
+    }
+    final roll = rand.nextDouble();
+    if (roll < 0.65) {
+      return NodeType.challenge;
+    } else {
+      return NodeType.luckyRoom;
+    }
+  }
+
+  static Map<String, dynamic> _buildObjectiveConfig(int layer, NodeType type, int actNumber) {
+    final int baseScore = 600 + (layer * 150) + ((actNumber - 1) * 400);
+    return {
+      'targetScore': baseScore,
+      'moveLimit': type == NodeType.finalBoss ? 35 : (type == NodeType.miniBoss ? 25 : 20),
+    };
   }
 }
