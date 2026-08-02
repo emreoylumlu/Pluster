@@ -577,6 +577,12 @@ class _PulseGridAppState extends State<PulseGridApp> {
         _completeCurrentRoguelikeNode();
         if (activeRunState != null) {
           activeRunState!.score += 500;
+          // ⚡ YILDIRIM TOBU: Savaş kazandı, buff sayacını bir azalt
+          if (activeRunState!.energyCostReductionBattlesLeft > 0) {
+            activeRunState!.energyCostReductionBattlesLeft--;
+          }
+          // 🧲 MANYETİK FIRTINA: Savaş bitti, bir sonraki savaşta tekrar aktif olmayı önle
+          activeRunState!.freeCardPlayPending = false;
         }
         final meta = await MetaProgressService.loadMetaProgress();
         final choices = CardDraftService.rollChoices(
@@ -1037,10 +1043,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       if (level != null) _applyLevelSpawnForces(level);
       score = 0;
       highScore = widget.initialHighScore;
-      
+
       // Tırmanış modunda enerjiyi önceki bölümden aktar!
       if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
-        energy = widget.roguelikeRunState!.energy.clamp(5.0, 100.0);
+        final rs = widget.roguelikeRunState!;
+
+        // ── nextBattleStartEnergyOverride tüket (YILDIRIM TOBU / KARANLIK YARIK) ──
+        if (rs.nextBattleStartEnergyOverride != null) {
+          energy = rs.nextBattleStartEnergyOverride!.clamp(5.0, 100.0);
+          rs.nextBattleStartEnergyOverride = null;
+        } else {
+          energy = rs.energy.clamp(5.0, 100.0);
+        }
       } else {
         energy = level?.constraints?.startEnergy ?? 100.0;
       }
@@ -1070,6 +1084,47 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       isLevelFailed = false;
       _levelCompletedStars = 0;
     });
+
+    // ── Roguelike savaş başı buff'larını uygula (setState dışında) ──
+    if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+      final rs = widget.roguelikeRunState!;
+
+      // 🌪️ TOZ ŞEYTANI: Boş hücreleri 1-değerli taşlarla doldur ve flag'i sıfırla
+      if (rs.prefillBoardNextBattle) {
+        rs.prefillBoardNextBattle = false;
+        setState(() {
+          for (int r = 0; r < 4; r++) {
+            for (int c = 0; c < 4; c++) {
+              if (grid[r][c].value == 0 &&
+                  grid[r][c].specialType == CellSpecialType.none) {
+                grid[r][c].value = 1;
+              }
+            }
+          }
+        });
+        Future.delayed(const Duration(milliseconds: 150), () {
+          if (mounted) _showEnergyFloatingText('🌪️ TOZ ŞEYTANI: Tahta hazır!');
+        });
+      }
+
+      // ⚡ YILDIRIM TOBU buff aktifse bildir
+      if (rs.energyCostReductionBattlesLeft > 0) {
+        Future.delayed(const Duration(milliseconds: 250), () {
+          if (mounted) {
+            _showEnergyFloatingText(
+              '⚡ YILDIRIM TOBU aktif! -20% maliyet (${rs.energyCostReductionBattlesLeft} savaş)',
+            );
+          }
+        });
+      }
+
+      // 🧲 MANYETİK FIRTINA aktifse bildir
+      if (rs.freeCardPlayPending) {
+        Future.delayed(const Duration(milliseconds: 350), () {
+          if (mounted) _showEnergyFloatingText('🧲 MANYETİK FIRTINA: Bir kart bedava!');
+        });
+      }
+    }
   }
 
   void _applyLevelSpawnForces(LevelData level) {
@@ -3258,6 +3313,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         cost *= 0.85;
       }
       cost *= roguelikeRunState.currentModifier.energyCostMultiplier;
+      // ⚡ YILDIRIM TOBU: Aktif savaşlarda -%20 enerji maliyeti
+      if (widget.roguelikeRunState != null &&
+          widget.roguelikeRunState!.energyCostReductionBattlesLeft > 0) {
+        cost *= 0.80;
+      }
     }
     return cost;
   }
@@ -3396,10 +3456,20 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       _updateScore(tile.value * 10);
 
       if (!willExplode) {
-        double cost = _getTileEnergyCost(tile);
-        energy = (energy - cost).clamp(0.0, 100.0);
-        _showEnergyFloatingText('-${cost.toInt()}⚡');
-        _triggerEnergyPulse(false);
+        // 🧲 MANYETİK FIRTINA: İlk kart bedava, flag'i sıfırla
+        final bool freePlay = widget.mode == GameMode.roguelike &&
+            widget.roguelikeRunState != null &&
+            widget.roguelikeRunState!.freeCardPlayPending;
+        if (freePlay) {
+          widget.roguelikeRunState!.freeCardPlayPending = false;
+          _showEnergyFloatingText('🧲 MANYETİK FIRTINA! 0⚡ Bedava!');
+          _triggerEnergyPulse(true);
+        } else {
+          double cost = _getTileEnergyCost(tile);
+          energy = (energy - cost).clamp(0.0, 100.0);
+          _showEnergyFloatingText('-${cost.toInt()}⚡');
+          _triggerEnergyPulse(false);
+        }
       }
       _syncRoguelikeEnergy();
     });

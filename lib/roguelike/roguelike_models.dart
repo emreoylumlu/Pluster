@@ -125,6 +125,17 @@ class RunState {
   bool isAlive;
   int runIndex;
 
+  // ── Sonraki savaşa taşınan geçici buff/debuff'lar ──────────────────
+  /// 🧲 MANYETİK FIRTINA: En pahalı kartı 0 enerjiyle oynama (1 kullanım)
+  bool freeCardPlayPending;
+  /// ⚡ YILDIRIM TOBU (iyi şans): Kalan savaş sayısı boyunca -%20 enerji maliyeti
+  int energyCostReductionBattlesLeft;
+  /// ⚡ YILDIRIM TOBU (kötü şans) / 🕳️ KARANLIK YARIK (kötü şans):
+  /// Bir sonraki savaşın başlangıç enerjisi bu yüzdeyle başlar (null = normal)
+  double? nextBattleStartEnergyOverride;
+  /// 🌪️ TOZ ŞEYTANI: Bir sonraki savaşta tahta boş hücreler 1-değer taşlarla doldurulsun
+  bool prefillBoardNextBattle;
+
   RunState({
     required this.map,
     required this.currentNodeId,
@@ -135,6 +146,10 @@ class RunState {
     required this.energy,
     required this.isAlive,
     this.runIndex = 1,
+    this.freeCardPlayPending = false,
+    this.energyCostReductionBattlesLeft = 0,
+    this.nextBattleStartEnergyOverride,
+    this.prefillBoardNextBattle = false,
   });
 
   void completeNode(MapNode node) {
@@ -155,6 +170,10 @@ class RunState {
         'energy': energy,
         'isAlive': isAlive,
         'runIndex': runIndex,
+        'freeCardPlayPending': freeCardPlayPending,
+        'energyCostReductionBattlesLeft': energyCostReductionBattlesLeft,
+        'nextBattleStartEnergyOverride': nextBattleStartEnergyOverride,
+        'prefillBoardNextBattle': prefillBoardNextBattle,
       };
 
   factory RunState.fromJson(Map<String, dynamic> json) {
@@ -175,6 +194,10 @@ class RunState {
       energy: (json['energy'] as num?)?.toDouble() ?? 100.0,
       isAlive: json['isAlive'] as bool? ?? true,
       runIndex: json['runIndex'] as int? ?? 1,
+      freeCardPlayPending: json['freeCardPlayPending'] as bool? ?? false,
+      energyCostReductionBattlesLeft: json['energyCostReductionBattlesLeft'] as int? ?? 0,
+      nextBattleStartEnergyOverride: (json['nextBattleStartEnergyOverride'] as num?)?.toDouble(),
+      prefillBoardNextBattle: json['prefillBoardNextBattle'] as bool? ?? false,
     );
 
     for (final layer in map.layers) {

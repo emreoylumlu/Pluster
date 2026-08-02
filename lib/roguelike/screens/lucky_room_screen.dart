@@ -15,6 +15,13 @@ enum EventRiskType {
   cardRaffle,
   overdrive,
   safe,
+  deckPurge,
+  pulsarResonance,
+  // Yeni olaylar
+  magneticStorm,
+  lightningBall,
+  dustDevil,
+  darkRift,
 }
 
 class LuckyEventChoice {
@@ -127,6 +134,55 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
         icon: Icons.shield_rounded,
         color: const Color(0xFF00E676),
         type: EventRiskType.safe,
+      ),
+      LuckyEventChoice(
+        title: '🧹 DESTE SAFLAŞTIRICI',
+        badge: 'DESTE TEMİZLEME',
+        description: '%10 Enerji öde ➔ Destenden 1 kart sil ve +40 Kristal kazan!',
+        icon: Icons.cleaning_services_rounded,
+        color: const Color(0xFFFF5252),
+        type: EventRiskType.deckPurge,
+      ),
+      LuckyEventChoice(
+        title: '⚡ PULSAR REZONANSI',
+        badge: '%70 / %30 ŞANS',
+        description: 'İyi şans: +40 Enerji + 40 Kristal!\nKötü şans: Enerjin %20 azalarak zorlanır.',
+        icon: Icons.graphic_eq_rounded,
+        color: const Color(0xFF00E5FF),
+        type: EventRiskType.pulsarResonance,
+      ),
+      // ── 4 Yeni Olay ──
+      LuckyEventChoice(
+        title: '🧲 MANYETİK FIRTINA',
+        badge: '%100 GARANTİLİ',
+        description: 'Elindeki en yüksek maliyetli kartı bir sonraki savaşta 0 enerjiyle oyna!',
+        icon: Icons.offline_bolt_rounded,
+        color: const Color(0xFF69F0AE),
+        type: EventRiskType.magneticStorm,
+      ),
+      LuckyEventChoice(
+        title: '⚡ YILDIRIM TOBU',
+        badge: '%50 / %50 ŞANS',
+        description: 'İyi şans: Sonraki 3 savaşta enerji tüketimin %20 azalır!\nKötü şans: Sonraki savaşta başlangıç enerji %60 olur.',
+        icon: Icons.thunderstorm_rounded,
+        color: const Color(0xFFFFEA00),
+        type: EventRiskType.lightningBall,
+      ),
+      LuckyEventChoice(
+        title: '🌪️ TOZ ŞEYTANI',
+        badge: '%100 GARANTİLİ',
+        description: 'Bir sonraki savaşa taşla dolu tahta ile başla! Tüm boş hücreler 1-değerli taşlarla dolar.',
+        icon: Icons.grain_rounded,
+        color: const Color(0xFFFFAB40),
+        type: EventRiskType.dustDevil,
+      ),
+      LuckyEventChoice(
+        title: '🕳️ KARANLIK YARIK',
+        badge: 'YÜKSEK RİSK %30/%70',
+        description: 'İyi şans (%30): +50 Kristal + 500 Skor!\nKötü şans (%70): %40 Enerji kaybı + sonraki savaş %50 enerjiyle başlar!',
+        icon: Icons.all_out_rounded,
+        color: const Color(0xFFBA68C8),
+        type: EventRiskType.darkRift,
       ),
     ];
 
@@ -272,6 +328,87 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
         widget.runState.energy = (widget.runState.energy + 15.0).clamp(0.0, 100.0);
         title = '🛡️ GÜVENLİ SIĞINAK';
         msg = 'Sakin kalındı. +15 Enerji ile tırmanışa güvenle devam ediliyor.';
+        break;
+
+      case EventRiskType.deckPurge:
+        if (widget.runState.energy > 10.0) {
+          widget.runState.energy = (widget.runState.energy - 10.0).clamp(5.0, 100.0);
+          if (widget.runState.unlockedCardIdsThisRun.isNotEmpty) {
+            widget.runState.unlockedCardIdsThisRun.removeLast();
+          }
+          final meta = await MetaProgressService.loadMetaProgress();
+          meta.energyCrystals += 40;
+          await MetaProgressService.saveMetaProgress(meta);
+          isSuccess = true;
+          title = '🧹 DESTE TEMİZLENDİ';
+          msg = '%10 Enerji ödendi. Fazlalık kart çıkarıldı ve +40 Kristal kazandın!';
+        } else {
+          isSuccess = false;
+          title = '⚠️ YETERSİZ ENERJİ';
+          msg = 'Deste temizliği yapmak için yeterli enerjin yok!';
+        }
+        break;
+
+      case EventRiskType.pulsarResonance:
+        isSuccess = rand.nextDouble() < 0.70;
+        if (isSuccess) {
+          widget.runState.energy = (widget.runState.energy + 40.0).clamp(0.0, 100.0);
+          final meta = await MetaProgressService.loadMetaProgress();
+          meta.energyCrystals += 40;
+          await MetaProgressService.saveMetaProgress(meta);
+          title = '⚡ REZONANS YAKALANDI!';
+          msg = 'Pulsar dalgalarıyla uyum sağlandı! +40 Enerji ve +40 Kristal kazandın!';
+        } else {
+          widget.runState.energy = (widget.runState.energy - 20.0).clamp(5.0, 100.0);
+          title = '🌀 REZONANS KOPTU!';
+          msg = 'Dalga boyu uyumsuzluğu! %20 Enerji kaybettin.';
+        }
+        break;
+
+      case EventRiskType.magneticStorm:
+        // %100 garantili: En yüksek maliyetli kartı 0 enerjiyle oynama hakkı
+        isSuccess = true;
+        widget.runState.freeCardPlayPending = true;
+        title = '🧲 MANYETİK FıRTİNA AKTIF!';
+        msg = 'Manyetik alan devreye girdi! Bir sonraki savaşta en pahalı kartı 0 enerjiyle oynarıyorsun.';
+        break;
+
+      case EventRiskType.lightningBall:
+        isSuccess = rand.nextBool(); // %50 / %50
+        if (isSuccess) {
+          widget.runState.energyCostReductionBattlesLeft = 3;
+          title = '⚡ YILDIRIM GÜCÜ!';
+          msg = 'Enerji verimliliğin arttı! Sonraki 3 savaşta tüm enerji harcaman %20 azalır.';
+        } else {
+          widget.runState.nextBattleStartEnergyOverride = 60.0;
+          title = '🌩️ YILDIRIM ATEŞİ!';
+          msg = 'Yanlış hesap! Şebeke hasar gördü. Sonraki savaş %60 enerjiyle başlıyor.';
+        }
+        break;
+
+      case EventRiskType.dustDevil:
+        // %100 garantili: Bir sonraki savaşta board prefill
+        isSuccess = true;
+        widget.runState.prefillBoardNextBattle = true;
+        title = '🌪️ TOZ ŞEYTANI KASIRGASI!';
+        msg = 'Boş hücreler taşlarla doldu! Bir sonraki savaşa dolu bir tahta ile başlıyorsun.';
+        break;
+
+      case EventRiskType.darkRift:
+        isSuccess = rand.nextDouble() < 0.30; // %30 iyi şans
+        if (isSuccess) {
+          widget.runState.score += 500;
+          final meta = await MetaProgressService.loadMetaProgress();
+          meta.energyCrystals += 50;
+          await MetaProgressService.saveMetaProgress(meta);
+          title = '🕳️ KARANLIK YARIK LOOT!';
+          msg = 'Yarıktan güç çıktı! +50 Kristal ve +500 Skor kazandın!';
+        } else {
+          widget.runState.energy = (widget.runState.energy * 0.60).clamp(5.0, 100.0);
+          widget.runState.nextBattleStartEnergyOverride = 50.0;
+          title = '🕳️ KARANLIK YARIK FELAKETI!';
+          msg = 'Yarık sizi yuttu! Enerjin %40 azaldı ve sonraki savaş %50 enerjiyle başlıyor.';
+        }
         break;
     }
 
