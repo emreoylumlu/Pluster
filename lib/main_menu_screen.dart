@@ -153,11 +153,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                              _buildModeCard(
                                context: context,
                                mode: GameMode.roguelike,
-                               title: widget.currentLanguage == AppLanguage.en ? 'PULSE DRAFT (ROGUELIKE)' : 'PULSE DRAFT (ROGUELIKE)',
-                               subtitle: widget.currentLanguage == AppLanguage.en
-                                   ? 'Start clean, draft cards each wave, build crazy tile synergies!'
-                                   : 'Temiz başla, her dalga 3 kart seçip desteni güçlendir, sinerjiler kur!',
-                               badgeText: 'DECKBUILDER 🎲',
+                               title: loc.text('tirmanis_modu'),
+                               subtitle: loc.text('tirmanis_modu_sub'),
+                               badgeText: widget.currentLanguage == AppLanguage.en ? 'ROGUELIKE 🎲' : 'TIRMANIŞ 🎲',
                                badgeColor: const Color(0xFFFF4081),
                                accentColor: const Color(0xFFFFD166),
                                icon: Icons.style_rounded,

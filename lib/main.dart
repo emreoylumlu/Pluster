@@ -14,10 +14,24 @@ import 'levels.dart';
 import 'localization.dart';
 import 'roguelike_models.dart';
 import 'roguelike_draft_modal.dart';
-import 'roguelike_deck_view_modal.dart';
 import 'roguelike_floor_transition_dialog.dart';
 
+import 'roguelike/roguelike_models.dart' as rgl;
+import 'roguelike/map_generator.dart';
+import 'roguelike/card_draft_service.dart';
+import 'roguelike/meta_progress_service.dart';
+import 'roguelike/card_pool.dart';
+import 'roguelike/screens/run_map_screen.dart';
+import 'roguelike/screens/card_draft_screen.dart';
+import 'roguelike/screens/run_summary_screen.dart';
+import 'roguelike/screens/meta_shop_screen.dart';
+import 'roguelike/screens/lucky_room_screen.dart';
+import 'roguelike/screens/workshop_screen.dart';
+
+import 'persistence_manager.dart';
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const PulseGridApp());
 }
 
@@ -35,10 +49,28 @@ class _PulseGridAppState extends State<PulseGridApp> {
   Map<int, int> levelStars = {}; // levelId -> stars (0-3)
   AppLanguage currentLanguage = AppLanguage.tr;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedData();
+  }
+
+  Future<void> _loadSavedData() async {
+    final data = await PersistenceManager.loadAllData();
+    if (mounted) {
+      setState(() {
+        globalHighScore = data.highScore;
+        levelStars = data.levelStars;
+        currentLanguage = data.language == 'en' ? AppLanguage.en : AppLanguage.tr;
+      });
+    }
+  }
+
   void _toggleLanguage() {
     setState(() {
       currentLanguage = currentLanguage == AppLanguage.tr ? AppLanguage.en : AppLanguage.tr;
     });
+    PersistenceManager.saveLanguage(currentLanguage == AppLanguage.en ? 'en' : 'tr');
   }
 
   int get unlockedUpTo {
@@ -56,14 +88,20 @@ class _PulseGridAppState extends State<PulseGridApp> {
       setState(() {
         globalHighScore = newScore;
       });
+      PersistenceManager.saveHighScore(newScore);
     }
   }
 
   void _onLevelComplete(int levelId, int stars) {
     setState(() {
       final existing = levelStars[levelId] ?? 0;
-      if (stars > existing) levelStars[levelId] = stars;
+      if (stars > existing) {
+        levelStars[levelId] = stars;
+      }
     });
+    PersistenceManager.saveLevelStars(levelId, stars);
+    final nextUnlocked = (levelId + 1).clamp(1, kAllLevels.length);
+    PersistenceManager.saveUnlockedUpTo(nextUnlocked);
   }
 
   void _showHelpBottomSheet(BuildContext context) {
@@ -180,6 +218,271 @@ class _PulseGridAppState extends State<PulseGridApp> {
     );
   }
 
+  rgl.RunState? activeRunState;
+  rgl.MapNode? activeRunNode;
+  bool isShowingMetaShop = false;
+  bool isShowingCardDraft = false;
+  bool isShowingRunSummary = false;
+  bool isShowingLuckyRoom = false;
+  bool isShowingWorkshop = false;
+  List<rgl.CardDefinition> currentDraftChoices = [];
+  int earnedCrystalsLastRun = 0;
+
+  void _initNewRoguelikeRun() async {
+    final meta = await MetaProgressService.loadMetaProgress();
+    meta.totalRunsStarted += 1;
+    await MetaProgressService.saveMetaProgress(meta);
+
+    final newMap = MapGenerator.generateMap(seed: DateTime.now().millisecondsSinceEpoch.toString());
+    setState(() {
+      activeRunState = rgl.RunState(
+        map: newMap,
+        currentNodeId: newMap.layers[0][0].id,
+        unlockedCardIdsThisRun: [],
+        activeModifiers: {},
+        currentLayer: 0,
+        score: 0,
+        energy: 100.0,
+        isAlive: true,
+        runIndex: meta.totalRunsStarted,
+      );
+      activeRunNode = null;
+      isShowingMetaShop = false;
+      isShowingCardDraft = false;
+      isShowingRunSummary = false;
+      isShowingLuckyRoom = false;
+      isShowingWorkshop = false;
+    });
+  }
+
+  Widget _buildHomeWidget(BuildContext context) {
+    if (activeMode == null) {
+      return MainMenuScreen(
+        highScore: globalHighScore,
+        currentLanguage: currentLanguage,
+        onLanguageToggle: _toggleLanguage,
+        onSelectMode: (mode) {
+          setState(() {
+            activeMode = mode;
+            selectedLevel = null;
+            if (mode == GameMode.roguelike) {
+              _initNewRoguelikeRun();
+            }
+          });
+        },
+        onOpenHelp: () => _showHelpBottomSheet(context),
+      );
+    }
+
+    if (activeMode == GameMode.stage && selectedLevel == null) {
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            setState(() {
+              activeMode = null;
+              selectedLevel = null;
+            });
+          }
+        },
+        child: LevelSelectScreen(
+          levelStars: levelStars,
+          unlockedUpTo: unlockedUpTo,
+          onSelectLevel: (level) {
+            setState(() => selectedLevel = level);
+          },
+          onBackToMenu: () {
+            setState(() {
+              activeMode = null;
+              selectedLevel = null;
+            });
+          },
+        ),
+      );
+    }
+
+    // Tırmanış Modu Akışı
+    if (activeMode == GameMode.roguelike) {
+      if (activeRunState == null) {
+        _initNewRoguelikeRun();
+        return const Scaffold(
+          backgroundColor: Color(0xFF070C1A),
+          body: Center(child: CircularProgressIndicator(color: Color(0xFFFFD166))),
+        );
+      }
+
+      if (isShowingMetaShop) {
+        return MetaShopScreen(
+          onClose: () => setState(() => isShowingMetaShop = false),
+        );
+      }
+
+      if (isShowingRunSummary) {
+        return RunSummaryScreen(
+          finishedRun: activeRunState!,
+          earnedCrystals: earnedCrystalsLastRun,
+          onRetry: () => _initNewRoguelikeRun(),
+          onGoToShop: () {
+            setState(() {
+              isShowingRunSummary = false;
+              isShowingMetaShop = true;
+            });
+          },
+          onReturnMainMenu: () {
+            setState(() {
+              activeMode = null;
+              activeRunState = null;
+              activeRunNode = null;
+            });
+          },
+        );
+      }
+
+      if (isShowingCardDraft) {
+        return CardDraftScreen(
+          offeredCards: currentDraftChoices,
+          onCardChosen: (chosenCard) {
+            setState(() {
+              activeRunState!.unlockedCardIdsThisRun.add(chosenCard.id);
+              isShowingCardDraft = false;
+
+              // Bir sonraki kata tırman
+              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
+                activeRunState!.currentLayer++;
+              } else {
+                // Koşu Tamamlandı (Zafer!)
+                MetaProgressService.processRunEnd(activeRunState!).then((meta) {
+                  setState(() {
+                    earnedCrystalsLastRun = MetaProgressService.calculateCrystalsEarned(activeRunState!);
+                    isShowingRunSummary = true;
+                  });
+                });
+              }
+            });
+          },
+        );
+      }
+
+      if (isShowingLuckyRoom) {
+        return LuckyRoomScreen(
+          runState: activeRunState!,
+          onCompleted: () {
+            setState(() {
+              if (activeRunNode != null) activeRunNode!.isCompleted = true;
+              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
+                activeRunState!.currentLayer++;
+              }
+              activeRunNode = null;
+              isShowingLuckyRoom = false;
+            });
+          },
+        );
+      }
+
+      if (isShowingWorkshop) {
+        return WorkshopScreen(
+          runState: activeRunState!,
+          onCompleted: () {
+            setState(() {
+              if (activeRunNode != null) activeRunNode!.isCompleted = true;
+              if (activeRunState!.currentLayer < activeRunState!.map.totalLayers - 1) {
+                activeRunState!.currentLayer++;
+              }
+              activeRunNode = null;
+              isShowingWorkshop = false;
+            });
+          },
+        );
+      }
+
+      if (activeRunNode == null) {
+        return RunMapScreen(
+          runState: activeRunState!,
+          onNodeSelected: (node) async {
+            setState(() {
+              activeRunNode = node;
+            });
+            if (node.type == rgl.NodeType.luckyRoom) {
+              setState(() => isShowingLuckyRoom = true);
+            } else if (node.type == rgl.NodeType.workshop) {
+              setState(() => isShowingWorkshop = true);
+            } else {
+              final meta = await MetaProgressService.loadMetaProgress();
+              final choices = CardDraftService.rollChoices(
+                count: 3,
+                currentLayer: activeRunState!.currentLayer,
+                meta: meta,
+              );
+              setState(() {
+                currentDraftChoices = choices;
+              });
+            }
+          },
+          onOpenMetaShop: () {
+            setState(() => isShowingMetaShop = true);
+          },
+        );
+      }
+    }
+
+    return PulseGridScreen(
+      mode: activeMode!,
+      level: selectedLevel,
+      initialHighScore: globalHighScore,
+      onHighScoreUpdated: _updateHighScore,
+      onLevelComplete: _onLevelComplete,
+      onNextLevel: (nextLevel) {
+        setState(() => selectedLevel = nextLevel);
+      },
+      currentLanguage: currentLanguage,
+      onLanguageToggle: _toggleLanguage,
+      roguelikeRunNode: activeRunNode,
+      roguelikeRunState: activeRunState,
+      onRoguelikeNodeWin: () async {
+        if (activeRunNode != null) {
+          activeRunNode!.isCompleted = true;
+        }
+        if (activeRunState != null) {
+          activeRunState!.score += 500;
+        }
+        final meta = await MetaProgressService.loadMetaProgress();
+        final choices = CardDraftService.rollChoices(
+          count: 3,
+          currentLayer: activeRunState?.currentLayer ?? 0,
+          meta: meta,
+        );
+        setState(() {
+          activeRunNode = null;
+          currentDraftChoices = choices;
+          isShowingCardDraft = true;
+        });
+      },
+      onRoguelikeRunFail: (finalScore) async {
+        if (activeRunState != null) {
+          activeRunState!.isAlive = false;
+          activeRunState!.score += finalScore;
+          await MetaProgressService.processRunEnd(activeRunState!);
+          setState(() {
+            earnedCrystalsLastRun = MetaProgressService.calculateCrystalsEarned(activeRunState!);
+            activeRunNode = null;
+            isShowingRunSummary = true;
+          });
+        }
+      },
+      onBackToMenu: () {
+        setState(() {
+          activeMode = null;
+          selectedLevel = null;
+          activeRunState = null;
+          activeRunNode = null;
+        });
+      },
+      onBackToLevelSelect: () {
+        setState(() => selectedLevel = null);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -188,62 +491,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B132B),
       ),
-      home: activeMode == null
-          ? MainMenuScreen(
-              highScore: globalHighScore,
-              currentLanguage: currentLanguage,
-              onLanguageToggle: _toggleLanguage,
-              onSelectMode: (mode) {
-                setState(() {
-                  activeMode = mode;
-                  selectedLevel = null;
-                });
-              },
-              onOpenHelp: () => _showHelpBottomSheet(context),
-            )
-          : (activeMode == GameMode.stage && selectedLevel == null)
-              ? PopScope(
-                  canPop: false,
-                  onPopInvokedWithResult: (didPop, result) {
-                    if (!didPop) {
-                      setState(() {
-                        activeMode = null;
-                        selectedLevel = null;
-                      });
-                    }
-                  },
-                  child: LevelSelectScreen(
-                    levelStars: levelStars,
-                    unlockedUpTo: unlockedUpTo,
-                    onSelectLevel: (level) {
-                      setState(() => selectedLevel = level);
-                    },
-                    onBackToMenu: () {
-                      setState(() {
-                        activeMode = null;
-                        selectedLevel = null;
-                      });
-                    },
-                  ),
-                )
-              : PulseGridScreen(
-                  mode: activeMode!,
-                  level: selectedLevel,
-                  initialHighScore: globalHighScore,
-                  onHighScoreUpdated: _updateHighScore,
-                  onLevelComplete: _onLevelComplete,
-                  currentLanguage: currentLanguage,
-                  onLanguageToggle: _toggleLanguage,
-                  onBackToMenu: () {
-                    setState(() {
-                      activeMode = null;
-                      selectedLevel = null;
-                    });
-                  },
-                  onBackToLevelSelect: () {
-                    setState(() => selectedLevel = null);
-                  },
-                ),
+      home: _buildHomeWidget(context),
     );
   }
 }
@@ -254,10 +502,15 @@ class PulseGridScreen extends StatefulWidget {
   final int initialHighScore;
   final ValueChanged<int> onHighScoreUpdated;
   final void Function(int levelId, int stars)? onLevelComplete;
+  final void Function(LevelData nextLevel)? onNextLevel;
   final VoidCallback onBackToMenu;
   final VoidCallback? onBackToLevelSelect;
   final AppLanguage currentLanguage;
   final VoidCallback? onLanguageToggle;
+  final rgl.MapNode? roguelikeRunNode;
+  final rgl.RunState? roguelikeRunState;
+  final VoidCallback? onRoguelikeNodeWin;
+  final ValueChanged<int>? onRoguelikeRunFail;
 
   const PulseGridScreen({
     super.key,
@@ -266,10 +519,15 @@ class PulseGridScreen extends StatefulWidget {
     required this.initialHighScore,
     required this.onHighScoreUpdated,
     this.onLevelComplete,
+    this.onNextLevel,
     required this.onBackToMenu,
     this.onBackToLevelSelect,
     this.currentLanguage = AppLanguage.tr,
     this.onLanguageToggle,
+    this.roguelikeRunNode,
+    this.roguelikeRunState,
+    this.onRoguelikeNodeWin,
+    this.onRoguelikeRunFail,
   });
 
   @override
@@ -288,6 +546,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   int maxCombo = 0;
   int overloadCharges = 2;
   int refreshCharges = 1;
+  bool hasUsedLastBreathInThisRun = false;
 
   double energy = 100.0;
   String? energyFloatingText;
@@ -322,6 +581,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   bool isLevelComplete = false;
   bool isLevelFailed = false;
   int _levelCompletedStars = 0;
+  bool isObjectivesExpanded = false;
+  bool isRoguelikePanelExpanded = false;
 
   late RoguelikeRunState roguelikeRunState;
   bool isShowingDraftModal = false;
@@ -347,6 +608,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   @override
+  void didUpdateWidget(covariant PulseGridScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.level != oldWidget.level) {
+      _initGame();
+    }
+  }
+
+  @override
   void dispose() {
     _dangerPulseController.dispose();
     _shakeController.dispose();
@@ -364,12 +633,23 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       widget.onHighScoreUpdated(highScore);
     }
     _checkScoreUnlocks();
-    _checkRoguelikeDraftTrigger();
   }
 
   void _checkRoguelikeDraftTrigger() {
-    if (widget.mode == GameMode.roguelike && !isShowingDraftModal && score >= roguelikeRunState.waveTargetScore) {
-      _showFloorTransitionFlow();
+    if (!mounted) return;
+    if (energy <= 0 || isGameOver || isLevelFailed) return;
+
+    if (widget.mode == GameMode.roguelike && !isShowingDraftModal) {
+      final int targetScore = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
+
+      if (score >= targetScore) {
+        setState(() => isShowingDraftModal = true);
+        if (widget.onRoguelikeNodeWin != null) {
+          widget.onRoguelikeNodeWin?.call();
+        } else {
+          _showFloorTransitionFlow();
+        }
+      }
     }
   }
 
@@ -534,7 +814,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   void _initGame() {
     final level = widget.level;
     setState(() {
-      roguelikeRunState = RoguelikeRunState();
       isShowingDraftModal = false;
       roguelikeTurnCount = 0;
       grid = List.generate(4, (_) => List.generate(4, (_) => CellData()));
@@ -555,6 +834,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       isGameOver = false;
       isProcessingPulse = false;
       activeComboTitle = null;
+      hasUsedAdRevive = false;
+      isPlayingAd = false;
+      adCountdown = 3;
       // Level tracking reset
       levelMoveCount = 0;
       levelBombsUsed = 0;
@@ -625,9 +907,35 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
   }
 
+  List<TileType> _getUnlockedTileTypesInRoguelike() {
+    final List<TileType> types = [TileType.normal];
+    final unlockedIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
+
+    for (var cardId in unlockedIds) {
+      final card = CardPool.byId(cardId);
+      if (card.effectType == rgl.CardEffectType.unlockTileType && card.relatedTileType != null) {
+        switch (card.relatedTileType) {
+          case 'multiplier':
+            types.add(TileType.multiplier);
+            break;
+          case 'bomb':
+            types.add(TileType.bomb);
+            break;
+          case 'magnet':
+            types.add(TileType.magnet);
+            break;
+          case 'prism':
+            types.add(TileType.prism);
+            break;
+        }
+      }
+    }
+    return types;
+  }
+
   TileData _generateRandomTile() {
     if (widget.mode == GameMode.roguelike) {
-      final unlocked = roguelikeRunState.unlockedTileTypes.toList();
+      final unlocked = _getUnlockedTileTypesInRoguelike();
       final specialTypes = unlocked.where((t) => t != TileType.normal).toList();
 
       int roll = Random().nextInt(100);
@@ -644,18 +952,13 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
             return TileData(value: 0, type: TileType.prism);
           case TileType.magnet:
             return TileData(value: Random().nextInt(3) + 1, type: TileType.magnet);
-          case TileType.crystal:
-            return TileData(value: Random().nextInt(3) + 1, type: TileType.crystal);
-          case TileType.contagion:
-            return TileData(value: Random().nextInt(3) + 1, type: TileType.contagion);
-          case TileType.equalizer:
-            return TileData(value: Random().nextInt(3) + 1, type: TileType.equalizer);
           default:
-            break;
+            return TileData(value: Random().nextInt(3) + 1, type: chosenType);
         }
       }
 
-      int val = roguelikeRunState.hasPassive('double_number_chance')
+      final unlockedIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
+      int val = unlockedIds.contains('card_double_number') || unlockedIds.contains('card_high_value_spawn')
           ? (Random().nextInt(3) + 1)
           : (Random().nextInt(2) + 1);
       return TileData(value: val, type: TileType.normal);
@@ -663,7 +966,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     final level = widget.level;
     final bool allowBomb = level == null || level.id >= 6 || level.forceBombAvailable;
-    final bool allowMultiplier = level == null || level.id >= 21 || level.forceMultiplierAvailable;
+    final bool allowMultiplier = widget.mode == GameMode.endless
+        ? false
+        : (level == null || level.id >= 21 || level.forceMultiplierAvailable);
 
     int roll = Random().nextInt(100);
     if (!allowBomb && roll >= 90) roll = Random().nextInt(75);
@@ -671,7 +976,35 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     if (roll < 75 || (!allowMultiplier && !allowBomb)) {
       int val;
-      if (score >= 8000) {
+      if (widget.mode == GameMode.endless) {
+        if (score >= 4000) {
+          int sub = Random().nextInt(100);
+          if (sub < 15) {
+            val = 1;
+          } else if (sub < 40) {
+            val = 2;
+          } else if (sub < 70) {
+            val = 3;
+          } else if (sub < 90) {
+            val = 4;
+          } else {
+            val = 5;
+          }
+        } else if (score >= 1000) {
+          int sub = Random().nextInt(100);
+          if (sub < 20) {
+            val = 1;
+          } else if (sub < 55) {
+            val = 2;
+          } else if (sub < 85) {
+            val = 3;
+          } else {
+            val = 4;
+          }
+        } else {
+          val = Random().nextInt(3) + 1;
+        }
+      } else if (score >= 8000) {
         int sub = Random().nextInt(100);
         if (sub < 20) {
           val = 1;
@@ -760,7 +1093,43 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     _triggerEnergyPulse(true);
   }
 
+  void _startAdMoveBoostFlow() {
+    setState(() {
+      isPlayingAd = true;
+      adCountdown = 3;
+    });
+
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (adCountdown > 1) {
+        setState(() {
+          adCountdown--;
+        });
+      } else {
+        timer.cancel();
+        _applyAdMoveBoost();
+      }
+    });
+  }
+
+  void _applyAdMoveBoost() {
+    setState(() {
+      isPlayingAd = false;
+      isLevelFailed = false;
+      hasUsedAdRevive = true;
+      levelMoveCount = (levelMoveCount - 5).clamp(0, 999);
+      energy = (energy + 30.0).clamp(0.0, 100.0);
+    });
+
+    _showEnergyFloatingText('🎬 +5 HAMLE KAZANILDI!');
+    _triggerEnergyPulse(true);
+  }
+
   void _triggerScorePulse() {
+    if (!mounted) return;
     setState(() => isScorePulsing = true);
     Future.delayed(const Duration(milliseconds: 200), () {
       if (mounted) setState(() => isScorePulsing = false);
@@ -768,6 +1137,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   void _showEnergyFloatingText(String text) {
+    if (!mounted) return;
     setState(() {
       energyFloatingText = text;
       energyFloatingTextKey++;
@@ -778,6 +1148,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   void _triggerEnergyPulse(bool increased) {
+    if (!mounted) return;
     setState(() {
       energyPulseDirection = increased ? 1 : -1;
       energyPulseTrigger++;
@@ -887,6 +1258,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                 ),
               ),
             ),
+            if (isObjectivesExpanded && widget.level != null)
+              _buildObjectivesExpandedOverlay(),
+            if (isRoguelikePanelExpanded && widget.mode == GameMode.roguelike)
+              _buildRoguelikeExpandedOverlay(),
             if (isGameOver)
               Positioned.fill(
                 child: Container(
@@ -952,19 +1327,34 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                             const SizedBox(height: 10),
                           ],
                           ElevatedButton.icon(
-                            onPressed: _initGame,
+                            onPressed: () {
+                              if (widget.mode == GameMode.roguelike && widget.onRoguelikeRunFail != null) {
+                                widget.onRoguelikeRunFail?.call(score);
+                              } else {
+                                _initGame();
+                              }
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFF4A4A),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                             ),
-                            icon: const Icon(Icons.replay_rounded, size: 20),
-                            label: const Text('YENİDEN BAŞLAT', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            icon: Icon(widget.mode == GameMode.roguelike ? Icons.emoji_events_rounded : Icons.replay_rounded, size: 20),
+                            label: Text(
+                              widget.mode == GameMode.roguelike ? 'KOŞUYU BİTİR VE ÖZETİ GÖR ➔' : 'YENİDEN BAŞLAT',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
-                            onPressed: widget.onBackToMenu,
+                            onPressed: () {
+                              if (widget.mode == GameMode.roguelike && widget.onRoguelikeRunFail != null) {
+                                widget.onRoguelikeRunFail?.call(score);
+                              } else {
+                                widget.onBackToMenu();
+                              }
+                            },
                             style: OutlinedButton.styleFrom(
                               foregroundColor: Colors.white70,
                               side: const BorderSide(color: Colors.white24),
@@ -1124,23 +1514,60 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     );
   }
 
-  String _getObjectiveShortLabel(LevelObjective obj) {
-    final bool isEn = widget.currentLanguage == AppLanguage.en;
+  double _getObjectiveProgress(LevelObjective obj) {
     switch (obj.type) {
       case ObjectiveType.scoreTarget:
-        return isEn ? 'Score: $score/${obj.target}' : 'Skor: $score/${obj.target}';
+        return obj.target > 0 ? score / obj.target : 1.0;
       case ObjectiveType.comboCount:
-        return isEn ? 'Combo: $levelComboChains/${obj.target}' : 'Kombo: $levelComboChains/${obj.target}';
+        return obj.target > 0 ? levelComboChains / obj.target : 1.0;
       case ObjectiveType.empCount:
-        return 'EMP: $levelEmpFired/${obj.target}';
+        return obj.target > 0 ? levelEmpFired / obj.target : 1.0;
       case ObjectiveType.clearLocked:
-        return isEn ? 'Locked: $levelLockedCleared/${obj.target}' : 'Kilit: $levelLockedCleared/${obj.target}';
+        return obj.target > 0 ? levelLockedCleared / obj.target : 1.0;
       case ObjectiveType.energyRemaining:
-        return isEn ? 'Energy: %${(energy).round()}' : 'Enerji: %${(energy).round()}';
+        return obj.target > 0 ? energy / obj.target : 1.0;
       case ObjectiveType.bombUsed:
-        return isEn ? 'Bomb: $levelBombsUsed/${obj.target}' : 'Bomba: $levelBombsUsed/${obj.target}';
+        return obj.target > 0 ? levelBombsUsed / obj.target : 1.0;
       case ObjectiveType.multiplierExplosion:
-        return isEn ? 'Mult: $levelMultiplierExplosions/${obj.target}' : 'Çarpan: $levelMultiplierExplosions/${obj.target}';
+        return obj.target > 0 ? levelMultiplierExplosions / obj.target : 1.0;
+    }
+  }
+
+  IconData _getObjectiveIconData(ObjectiveType type) {
+    switch (type) {
+      case ObjectiveType.scoreTarget:
+        return Icons.track_changes_rounded;
+      case ObjectiveType.comboCount:
+        return Icons.link_rounded;
+      case ObjectiveType.empCount:
+        return Icons.bolt_rounded;
+      case ObjectiveType.clearLocked:
+        return Icons.lock_open_rounded;
+      case ObjectiveType.energyRemaining:
+        return Icons.battery_charging_full_rounded;
+      case ObjectiveType.bombUsed:
+        return Icons.waves_rounded;
+      case ObjectiveType.multiplierExplosion:
+        return Icons.close_rounded;
+    }
+  }
+
+  String _getObjectiveProgressText(LevelObjective obj) {
+    switch (obj.type) {
+      case ObjectiveType.scoreTarget:
+        return '$score / ${obj.target}';
+      case ObjectiveType.comboCount:
+        return '$levelComboChains / ${obj.target}';
+      case ObjectiveType.empCount:
+        return '$levelEmpFired / ${obj.target}';
+      case ObjectiveType.clearLocked:
+        return '$levelLockedCleared / ${obj.target}';
+      case ObjectiveType.energyRemaining:
+        return '${energy.toInt()}% / ${obj.target}%';
+      case ObjectiveType.bombUsed:
+        return '$levelBombsUsed / ${obj.target}';
+      case ObjectiveType.multiplierExplosion:
+        return '$levelMultiplierExplosions / ${obj.target}';
     }
   }
 
@@ -1150,303 +1577,846 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final movesLeft = moveLimit != null ? (moveLimit - levelMoveCount).clamp(0, moveLimit) : null;
     final loc = AppLocalizations(widget.currentLanguage);
 
+    final primaryObjective = level.displayObjectives.firstWhere(
+      (o) => o.type == ObjectiveType.scoreTarget,
+      orElse: () => level.displayObjectives.first,
+    );
+    final primaryMet = _isObjectiveMet(primaryObjective);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: GlassCard(
-        borderRadius: BorderRadius.circular(16),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 5),
+      child: GestureDetector(
+        onTap: () => setState(() => isObjectivesExpanded = !isObjectivesExpanded),
+        child: GlassCard(
+          borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              // Left: Level Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: level.isBoss
+                      ? const Color(0xFFFF6B35).withValues(alpha: 0.25)
+                      : const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                    width: 1.4,
+                  ),
+                ),
                 child: Text(
-                  '🎯 ${loc.text('seviye_gorevleri')}',
+                  '${loc.text('seviye')} ${level.id}',
                   style: TextStyle(
-                    color: const Color(0xFF7FFFD4).withValues(alpha: 0.90),
-                    fontSize: 10,
+                    color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
-                    letterSpacing: 2.0,
+                    letterSpacing: 0.8,
                   ),
                 ),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Left: Level Badge & Moves Left
-                Row(
+              const SizedBox(width: 6),
+
+              // Middle: Moves Left Pill
+              if (movesLeft != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: movesLeft <= 5
+                        ? Colors.redAccent.withValues(alpha: 0.35)
+                        : Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: movesLeft <= 5 ? Colors.redAccent : Colors.white24,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Text(
+                    '$movesLeft/$moveLimit ${loc.text('hamle')}',
+                    style: TextStyle(
+                      color: movesLeft <= 5 ? Colors.redAccent : Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+
+              const Spacer(),
+
+              // Right: Primary Objective Summary Pill
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: primaryMet
+                      ? const Color(0xFF00E676).withValues(alpha: 0.2)
+                      : const Color(0xFF0C192E).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: primaryMet ? const Color(0xFF00E676) : const Color(0xFF4FC3F7).withValues(alpha: 0.4),
+                    width: 1.2,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: level.isBoss ? const Color(0xFFFF6B35).withValues(alpha: 0.25) : const Color(0xFF00BFA5).withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Text(
-                        '${loc.text('seviye')} ${level.id}',
-                        style: TextStyle(
-                          color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.8,
-                        ),
+                    Icon(
+                      primaryMet ? Icons.check_circle_rounded : Icons.track_changes_rounded,
+                      size: 14,
+                      color: primaryMet ? const Color(0xFF00E676) : const Color(0xFF4FC3F7),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      _getObjectiveProgressText(primaryObjective),
+                      style: TextStyle(
+                        color: primaryMet ? const Color(0xFF7FFFD4) : Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                    if (movesLeft != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: movesLeft <= 5 ? Colors.redAccent.withValues(alpha: 0.35) : Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: movesLeft <= 5 ? Colors.redAccent : Colors.white24,
-                            width: 1.0,
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 6),
+
+              // Far Right: Toggle Arrow
+              Icon(
+                isObjectivesExpanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildObjectivesExpandedOverlay() {
+    final level = widget.level!;
+    final moveLimit = level.constraints?.moveLimit;
+    final movesLeft = moveLimit != null ? (moveLimit - levelMoveCount).clamp(0, moveLimit) : null;
+    final loc = AppLocalizations(widget.currentLanguage);
+
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          // 1. Fullscreen Backdrop Barrier - Tapping ANYWHERE outside or on backdrop closes the panel!
+          GestureDetector(
+            onTap: () => setState(() => isObjectivesExpanded = false),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.55),
+            ),
+          ),
+
+          // 2. Floating Objectives Card - Positioned IN FRONT OF EVERYTHING!
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 125, 16, 0),
+                constraints: const BoxConstraints(maxWidth: 420),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF070F22).withValues(alpha: 0.98),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFF00BFA5).withValues(alpha: 0.6),
+                    width: 1.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00BFA5).withValues(alpha: 0.35),
+                      blurRadius: 24,
+                      spreadRadius: 3,
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header Row inside overlay
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: level.isBoss
+                                  ? const Color(0xFFFF6B35).withValues(alpha: 0.25)
+                                  : const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                                width: 1.4,
+                              ),
+                            ),
+                            child: Text(
+                              '${loc.text('seviye')} ${level.id}',
+                              style: TextStyle(
+                                color: level.isBoss ? const Color(0xFFFF6B35) : const Color(0xFF7FFFD4),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: Text(
-                          '$movesLeft/$moveLimit ${loc.text('hamle')}',
-                          style: TextStyle(
-                            color: movesLeft <= 5 ? Colors.redAccent : Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
+                          const SizedBox(width: 6),
+                          if (movesLeft != null)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: movesLeft <= 5
+                                    ? Colors.redAccent.withValues(alpha: 0.35)
+                                    : Colors.white.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: movesLeft <= 5 ? Colors.redAccent : Colors.white24,
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Text(
+                                '$movesLeft/$moveLimit ${loc.text('hamle')}',
+                                style: TextStyle(
+                                  color: movesLeft <= 5 ? Colors.redAccent : Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  widget.currentLanguage == AppLanguage.en ? 'LEVEL OBJECTIVES' : 'SEVİYE GÖREVLERİ',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.7),
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Objective Cards List matching user mockup image
+                      ...level.displayObjectives.map((obj) {
+                        final met = _isObjectiveMet(obj);
+                        final double progress = _getObjectiveProgress(obj).clamp(0.0, 1.0);
+                        final icon = _getObjectiveIconData(obj.type);
+                        final text = _getObjectiveProgressText(obj);
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: met
+                                ? const Color(0xFF00E676).withValues(alpha: 0.14)
+                                : Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: met
+                                  ? const Color(0xFF00E676).withValues(alpha: 0.6)
+                                  : Colors.white.withValues(alpha: 0.12),
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              // Circular Icon Badge
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: met
+                                      ? const Color(0xFF00E676).withValues(alpha: 0.25)
+                                      : const Color(0xFF00BFA5).withValues(alpha: 0.2),
+                                  border: Border.all(
+                                    color: met ? const Color(0xFF00E676) : const Color(0xFF4FC3F7),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  icon,
+                                  size: 16,
+                                  color: met ? const Color(0xFF00E676) : const Color(0xFF4FC3F7),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+
+                              // Label + Progress Bar
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      obj.label,
+                                      style: TextStyle(
+                                        color: met ? const Color(0xFF7FFFD4) : Colors.white,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(4),
+                                      child: LinearProgressIndicator(
+                                        value: progress,
+                                        minHeight: 5,
+                                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          met ? const Color(0xFF00E676) : const Color(0xFF00BFA5),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(width: 12),
+
+                              // Numeric Ratio & Checkbox Badge
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    text,
+                                    style: TextStyle(
+                                      color: met ? const Color(0xFF00E676) : Colors.white70,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Icon(
+                                    met ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 18,
+                                    color: met ? const Color(0xFF00E676) : Colors.white24,
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 4),
+
+                      // Close Arrow at bottom
+                      GestureDetector(
+                        onTap: () => setState(() => isObjectivesExpanded = false),
+                        behavior: HitTestBehavior.opaque,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(
+                                Icons.keyboard_arrow_up_rounded,
+                                color: Colors.white70,
+                                size: 24,
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ],
-                  ],
-                ),
-
-                // Right: Clear Objectives List Chips
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerRight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: level.displayObjectives.map((obj) {
-                          final met = _isObjectiveMet(obj);
-                          return Container(
-                            margin: const EdgeInsets.only(left: 6),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: met ? const Color(0xFF00BFA5).withValues(alpha: 0.22) : Colors.black.withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: met ? const Color(0xFF00BFA5) : Colors.white24,
-                                width: 1.0,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  met ? Icons.check_circle_rounded : Icons.task_alt_rounded,
-                                  size: 13,
-                                  color: met ? const Color(0xFF00E676) : const Color(0xFFFFD166),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _getObjectiveShortLabel(obj),
-                                  style: TextStyle(
-                                    color: met ? const Color(0xFF7FFFD4) : Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
                   ),
                 ),
-              ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildRoguelikeHeaderPanel() {
     final isEn = widget.currentLanguage == AppLanguage.en;
-    final floor = roguelikeRunState.currentFloor;
-    final target = roguelikeRunState.waveTargetScore;
+    final int floor = (widget.roguelikeRunState?.currentLayer ?? 0) + 1;
+    final int target = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
+    final double scoreProgress = (score / (target > 0 ? target : 1)).clamp(0.0, 1.0);
+    final int scorePercent = (scoreProgress * 100).toInt();
+
+    final List<String> activeCardIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
+    final mod = roguelikeRunState.currentModifier;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: GlassCard(
-        borderRadius: BorderRadius.circular(16),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 5),
-                child: Text(
-                  isEn ? '🎲 ROGUELIKE DRAFT MODE' : '🎲 PULSE DRAFT (ROGUELIKE)',
-                  style: const TextStyle(
-                    color: Color(0xFFFFD166),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.8,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => isRoguelikePanelExpanded = !isRoguelikePanelExpanded);
+        },
+        child: GlassCard(
+          borderRadius: BorderRadius.circular(18),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          child: Row(
+            children: [
+              // 1. Floor Badge ("KAT X") matching user mockup!
+              Container(
+                width: 42,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF091428),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: const Color(0xFF00E676).withValues(alpha: 0.7),
+                    width: 1.2,
                   ),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isEn ? 'FLOOR' : 'KAT',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 8,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    Text(
+                      '$floor',
+                      style: const TextStyle(
+                        color: Color(0xFF00E676),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        height: 1.0,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFD166).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFFD166), width: 1.0),
-                  ),
-                  child: Text(
-                    isEn ? 'FLOOR $floor' : 'KAT $floor',
-                    style: const TextStyle(
-                      color: Color(0xFFFFD166),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+              const SizedBox(width: 8),
+
+              // 2. Score Target & Neon Progress Bar
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$score / $target',
+                          style: const TextStyle(
+                            color: Color(0xFF00E676),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          '%$scorePercent',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ),
-                InkWell(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    showDialog(
-                      context: context,
-                      builder: (context) => RoguelikeDeckViewModal(
-                        runState: roguelikeRunState,
-                        isEn: isEn,
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: scoreProgress,
+                        minHeight: 5,
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          scoreProgress >= 1.0 ? const Color(0xFF00E676) : const Color(0xFF00BFA5),
+                        ),
                       ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF4081).withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFF4081), width: 1.0),
                     ),
-                    child: Row(
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              // Vertical Divider
+              Container(width: 1, height: 26, color: Colors.white12),
+              const SizedBox(width: 8),
+
+              // 3. Draft Cards Summary Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF4081).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: const Color(0xFFFF4081), width: 1.0),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.style_rounded, size: 12, color: Color(0xFFFF4081)),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${activeCardIds.length}',
+                      style: const TextStyle(
+                        color: Color(0xFFFF4081),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+
+              // Vertical Divider
+              Container(width: 1, height: 26, color: Colors.white12),
+              const SizedBox(width: 6),
+
+              // 4. Modifier / Relic Icon Badge
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: mod.color.withValues(alpha: 0.2),
+                  border: Border.all(color: mod.color, width: 1.2),
+                ),
+                child: Icon(mod.icon, size: 14, color: mod.color),
+              ),
+              const SizedBox(width: 6),
+
+              // 5. Expand Toggle Chevron
+              Icon(
+                isRoguelikePanelExpanded
+                    ? Icons.keyboard_arrow_up_rounded
+                    : Icons.keyboard_arrow_down_rounded,
+                color: Colors.white70,
+                size: 22,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoguelikeExpandedOverlay() {
+    final isEn = widget.currentLanguage == AppLanguage.en;
+    final int floor = (widget.roguelikeRunState?.currentLayer ?? 0) + 1;
+    final int target = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
+    final double scoreProgress = (score / (target > 0 ? target : 1)).clamp(0.0, 1.0);
+    final int scorePercent = (scoreProgress * 100).toInt();
+    final mod = roguelikeRunState.currentModifier;
+
+    final List<String> activeCardIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
+    final List<rgl.CardDefinition> activeCards = activeCardIds.map((id) => CardPool.byId(id)).toList();
+    final Map<String, List<rgl.CardDefinition>> groupedCards = {};
+    for (var card in activeCards) {
+      groupedCards.putIfAbsent(card.name, () => []).add(card);
+    }
+
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          // 1. Fullscreen Backdrop Barrier - Tap anywhere to close!
+          GestureDetector(
+            onTap: () => setState(() => isRoguelikePanelExpanded = false),
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.55),
+            ),
+          ),
+
+          // 2. Floating Glassmorphic Dropdown Card
+          SafeArea(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 125, 16, 0),
+                constraints: BoxConstraints(
+                  maxWidth: 420,
+                  maxHeight: MediaQuery.of(context).size.height * 0.70,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF070F22).withValues(alpha: 0.98),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFFFFD166).withValues(alpha: 0.6),
+                    width: 1.8,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFD166).withValues(alpha: 0.25),
+                      blurRadius: 24,
+                      spreadRadius: 3,
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                  child: SingleChildScrollView(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.style_rounded, size: 12, color: Color(0xFFFF4081)),
-                        const SizedBox(width: 4),
-                        Text(
-                          isEn ? 'DECK' : 'DESTE',
-                          style: const TextStyle(
-                            color: Color(0xFFFF4081),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.8,
+                        // Header Row
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFD166).withValues(alpha: 0.25),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFFFD166), width: 1.4),
+                              ),
+                              child: Text(
+                                isEn ? 'FLOOR $floor' : 'KAT $floor',
+                                style: const TextStyle(
+                                  color: Color(0xFFFFD166),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    isEn ? '🎲 CLIMB MODE STATS' : '🎲 TIRMANIŞ MODU DETAYLARI',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.7),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Score Target Box
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFF00E676).withValues(alpha: 0.4)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    isEn ? 'FLOOR TARGET SCORE' : 'KAT HEDEF SKORU',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(
+                                    '$score / $target (%$scorePercent)',
+                                    style: const TextStyle(
+                                      color: Color(0xFF00E676),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                  value: scoreProgress,
+                                  minHeight: 6,
+                                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    scoreProgress >= 1.0 ? const Color(0xFF00E676) : const Color(0xFF00BFA5),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Modifier Box
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: mod.color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: mod.color.withValues(alpha: 0.6)),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(mod.icon, size: 20, color: mod.color),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      mod.name,
+                                      style: TextStyle(
+                                        color: mod.color,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      mod.description,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Active Draft Cards Section Header
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            isEn ? 'ACTIVE DRAFT CARDS (${activeCards.length})' : 'AKTİF DRAFT KARTLARI (${activeCards.length})',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        if (activeCards.isEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              isEn ? 'No draft cards selected yet' : 'Henüz draft kartı seçilmedi',
+                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                            ),
+                          )
+                        else
+                          ...groupedCards.entries.map((entry) {
+                            final sampleCard = entry.value.first;
+                            final count = entry.value.length;
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.10),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFF4081).withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFFF4081)),
+                                    ),
+                                    child: Text(
+                                      '${count}x',
+                                      style: const TextStyle(
+                                        color: Color(0xFFFF4081),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          sampleCard.name,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                        Text(
+                                          sampleCard.description,
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.7),
+                                            fontSize: 9.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+
+                        const SizedBox(height: 10),
+
+                        // Close Chevron Button
+                        GestureDetector(
+                          onTap: () => setState(() => isRoguelikePanelExpanded = false),
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.keyboard_arrow_up_rounded,
+                                  color: Colors.white70,
+                                  size: 24,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF00BFA5).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF7FFFD4), width: 1.0),
-                  ),
-                  child: Text(
-                    isEn ? 'NEXT DRAFT: $score / $target' : 'DRAFT HEDEFİ: $score / $target',
-                    style: const TextStyle(
-                      color: Color(0xFF7FFFD4),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Builder(
-              builder: (context) {
-                final mod = roguelikeRunState.currentModifier;
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: mod.isBoss
-                        ? const Color(0xFFFF1744).withValues(alpha: 0.25)
-                        : mod.color.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: mod.color, width: 1.0),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(mod.icon, size: 12, color: mod.color),
-                      const SizedBox(width: 5),
-                      Text(
-                        '${mod.name}: ',
-                        style: TextStyle(color: mod.color, fontSize: 10, fontWeight: FontWeight.w900),
-                      ),
-                      Flexible(
-                        child: Text(
-                          mod.description,
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 10, fontWeight: FontWeight.w600),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-            if (roguelikeRunState.activePassives.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: roguelikeRunState.activePassives.map((passiveId) {
-                    final card = kRoguelikeCards.firstWhere((c) => c.id == passiveId, orElse: () => kRoguelikeCards.first);
-                    return Container(
-                      margin: const EdgeInsets.only(right: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: card.color.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: card.color.withValues(alpha: 0.5), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(card.icon, size: 11, color: card.color),
-                          const SizedBox(width: 3),
-                          Text(
-                            card.name,
-                            style: TextStyle(color: card.color, fontSize: 9, fontWeight: FontWeight.w800),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
               ),
-            ],
-          ],
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1532,19 +2502,48 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                   ],
                 ),
                 const SizedBox(height: 20),
-                if (level.id < 50)
+                if (level.id < 50) ...[
                   ElevatedButton.icon(
-                    onPressed: () => widget.onBackToLevelSelect?.call(),
+                    onPressed: () {
+                      final nextLevel = kAllLevels.firstWhere(
+                        (l) => l.id == level.id + 1,
+                        orElse: () => level,
+                      );
+                      if (widget.onNextLevel != null) {
+                        widget.onNextLevel!(nextLevel);
+                      } else {
+                        widget.onBackToLevelSelect?.call();
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00BFA5),
                       foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 46),
+                      minimumSize: const Size(double.infinity, 48),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 8,
                     ),
-                    icon: const Icon(Icons.grid_view_rounded, size: 20),
-                    label: const Text('SEVİYE SEÇİMİNE DÖN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    label: Text(
+                      widget.currentLanguage == AppLanguage.en ? 'NEXT LEVEL ▶' : 'SONRAKİ SEVİYE ▶',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                    ),
                   ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => widget.onBackToLevelSelect?.call(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white24),
+                      minimumSize: const Size(double.infinity, 42),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: const Icon(Icons.grid_view_rounded, size: 18),
+                    label: Text(
+                      widget.currentLanguage == AppLanguage.en ? 'LEVEL SELECT' : 'SEVİYE SEÇİMİ',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: widget.onBackToMenu,
@@ -1640,6 +2639,24 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                   );
                 }),
                 const SizedBox(height: 20),
+                if (!hasUsedAdRevive) ...[
+                  ElevatedButton.icon(
+                    onPressed: _startAdMoveBoostFlow,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFFD166),
+                      foregroundColor: const Color(0xFF1A0A0A),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 8,
+                    ),
+                    icon: const Icon(Icons.movie_rounded, size: 22, color: Color(0xFF1A0A0A)),
+                    label: Text(
+                      widget.currentLanguage == AppLanguage.en ? '🎬 WATCH AD: +5 MOVES' : '🎬 REKLAM İZLE: +5 HAMLE AL',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13, letterSpacing: 0.5),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 ElevatedButton.icon(
                   onPressed: _initGame,
                   style: ElevatedButton.styleFrom(
@@ -1650,7 +2667,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                     elevation: 8,
                   ),
                   icon: const Icon(Icons.replay_rounded, size: 20),
-                  label: const Text('TEKRAR DENE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  label: Text(
+                    widget.currentLanguage == AppLanguage.en ? 'RETRY' : 'TEKRAR DENE',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
@@ -2005,6 +3025,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   double _getTileEnergyCost(TileData tile) {
     if (tile.type == TileType.prism) return 0.0;
     double cost = (tile.type == TileType.multiplier) ? 15.0 : (tile.value * 6.0);
+    if (widget.mode == GameMode.endless && score >= 2000) {
+      cost += 2.0; // High score energy pressure
+    }
     if (widget.mode == GameMode.roguelike) {
       if (roguelikeRunState.hasPassive('energy_saver')) {
         cost *= 0.85;
@@ -2042,17 +3065,49 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       return;
     }
 
+    if (tile.type == TileType.multiplier) {
+      HapticFeedback.mediumImpact();
+      bool willExplodeMult = false;
+      setState(() {
+        final int oldVal = grid[r][c].value;
+        grid[r][c].value = (oldVal > 0 ? oldVal * 2 : 2).clamp(1, 8);
+        grid[r][c].isMultiplier = true;
+        if (grid[r][c].value >= 8) willExplodeMult = true;
+      });
+      _showEnergyFloatingText('✖️ 2x DEĞER ÇARPIMI!');
+      _updateScore(grid[r][c].value * 15);
+      if (willExplodeMult) {
+        await _processPulseQueue(r, c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
     if (tile.type == TileType.prism) {
       HapticFeedback.heavyImpact();
       _triggerScreenShake();
+      List<_Point> neighbors = [
+        _Point(r - 1, c),
+        _Point(r + 1, c),
+        _Point(r, c - 1),
+        _Point(r, c + 1),
+      ];
+      bool explodeAny = false;
       setState(() {
-        grid[r][c].value = 8;
-        activeVfxType = 'overload';
-        activeVfxKey++;
+        for (var n in neighbors) {
+          if (n.r >= 0 && n.r < 4 && n.c >= 0 && n.c < 4) {
+            if (grid[n.r][n.c].value > 0) {
+              grid[n.r][n.c].value = (grid[n.r][n.c].value + 1).clamp(1, 8);
+              if (grid[n.r][n.c].value >= 8) explodeAny = true;
+            }
+          }
+        }
       });
-      _showEnergyFloatingText('🌈 PRİZMATİK JOKER!');
+      _showEnergyFloatingText('💎 PRİZMA: +1 PULSE DÖNÜŞÜMÜ!');
       _triggerScorePulse();
-      await _processPulseQueue(r, c);
+      if (explodeAny) {
+        await _processPulseQueue(r, c);
+      }
       if (level != null) _checkLevelObjectives();
       return;
     }
@@ -2065,19 +3120,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     setState(() {
       grid[r][c].value += tile.value;
-      if (tile.type == TileType.multiplier) {
-        grid[r][c].isMultiplier = true;
-        final String mText = grid[r][c].specialType == CellSpecialType.doubleScore ? '✨ 4x SKOR!' : '✨ 2x SKOR!';
-        _showEnergyFloatingText(mText);
-      }
       _updateScore(tile.value * 10);
 
       if (!willExplode) {
         double cost = _getTileEnergyCost(tile);
         energy = (energy - cost).clamp(0.0, 100.0);
-        if (tile.type != TileType.multiplier) {
-          _showEnergyFloatingText('-${cost.toInt()}⚡');
-        }
+        _showEnergyFloatingText('-${cost.toInt()}⚡');
         _triggerEnergyPulse(false);
       }
     });
@@ -2092,6 +3140,24 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     if (widget.mode == GameMode.roguelike) {
       roguelikeTurnCount++;
+      if (widget.roguelikeRunState != null && widget.roguelikeRunState!.unlockedCardIdsThisRun.contains('card_reactor')) {
+        List<_Point> validCells = [];
+        for (int row = 0; row < 4; row++) {
+          for (int col = 0; col < 4; col++) {
+            if (grid[row][col].value > 0 && grid[row][col].value < 8) {
+              validCells.add(_Point(row, col));
+            }
+          }
+        }
+        if (validCells.isNotEmpty) {
+          final pt = validCells[Random().nextInt(validCells.length)];
+          setState(() {
+            grid[pt.r][pt.c].value = (grid[pt.r][pt.c].value + 1).clamp(1, 8);
+          });
+          _showEnergyFloatingText('⚛️ REAKTÖR: +1 YÜKLEME!');
+        }
+      }
+
       final int interval = roguelikeRunState.currentModifier.stoneCurseInterval;
       if (interval > 0 && roguelikeTurnCount % interval == 0) {
         _applyStoneCurse();
@@ -2099,12 +3165,27 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
 
     if (energy <= 0 && !isLevelComplete) {
+      if (widget.mode == GameMode.roguelike &&
+          widget.roguelikeRunState != null &&
+          widget.roguelikeRunState!.unlockedCardIdsThisRun.contains('card_safety_net') &&
+          !hasUsedLastBreathInThisRun) {
+        setState(() {
+          hasUsedLastBreathInThisRun = true;
+          energy = 25.0;
+        });
+        HapticFeedback.heavyImpact();
+        _showEnergyFloatingText('🛡️ SON SOLUK: HAYATA DÖNDÜN!');
+        return;
+      }
+
       HapticFeedback.vibrate();
       if (level != null) {
         setState(() => isLevelFailed = true);
       } else {
         setState(() => isGameOver = true);
       }
+    } else {
+      _checkRoguelikeDraftTrigger();
     }
   }
 
@@ -2215,6 +3296,17 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       // Enerji Kazanımı
       double energyGained = 20.0 * comboCount;
+      if (widget.mode == GameMode.endless) {
+        if (comboCount == 1) {
+          energyGained = 8.0;
+        } else if (comboCount == 2) {
+          energyGained = 25.0;
+        } else if (comboCount == 3) {
+          energyGained = 55.0;
+        } else {
+          energyGained = 90.0;
+        }
+      }
       if (currentSpecial == CellSpecialType.doubleEnergy) {
         energyGained *= 2;
       }
@@ -2367,11 +3459,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     int stars = 1;
     if (moveLimit != null) {
       final usedRatio = levelMoveCount / moveLimit;
-      if (usedRatio <= 0.75) stars++;
-      if (usedRatio <= 0.60 && energy >= 60) stars++;
+      if (usedRatio <= 0.75 || energy >= 50) stars++;
+      if (usedRatio <= 0.60 || energy >= 70) stars++;
     } else {
-      if (energy >= 60) stars++;
-      if (energy >= 80) stars++;
+      if (energy >= 50) stars++;
+      if (energy >= 75) stars++;
     }
     return stars.clamp(1, 3);
   }

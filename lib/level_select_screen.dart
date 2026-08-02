@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'game_models.dart';
 import 'levels.dart';
 
@@ -365,6 +366,7 @@ class _LevelCardState extends State<_LevelCard>
       onTapUp: isUnlocked
           ? (_) {
               _pressController.reverse();
+              HapticFeedback.lightImpact();
               widget.onTap?.call();
             }
           : null,

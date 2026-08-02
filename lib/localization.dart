@@ -23,6 +23,11 @@ class AppLocalizations {
       AppLanguage.tr: 'Aşama aşama hedefleri tamamla, zorlu seviyeleri geç!',
       AppLanguage.en: 'Complete objectives stage by stage and conquer levels!'
     },
+    'tirmanis_modu': {AppLanguage.tr: 'TIRMANIŞ MODU', AppLanguage.en: 'CLIMB MODE'},
+    'tirmanis_modu_sub': {
+      AppLanguage.tr: 'Tırmanışa başla, desteni güçlendir ve sinerjiler oluştur!',
+      AppLanguage.en: 'Start climbing, empower your deck and build synergies!'
+    },
     'seviyeler': {AppLanguage.tr: 'SEVİYELER', AppLanguage.en: 'STAGES'},
     'nasil_oynanir': {AppLanguage.tr: 'NASIL OYNANIR?', AppLanguage.en: 'HOW TO PLAY?'},
 
