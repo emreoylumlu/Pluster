@@ -1,4 +1,4 @@
-enum TileType { normal, bomb, multiplier, prism, magnet, crystal, contagion, equalizer }
+enum TileType { normal, bomb, multiplier, prism, magnet, crystal, contagion, wildcard, nova, vortex, equalizer }
 
 enum CellSpecialType { none, locked, emp, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, crystalVein, bossCore, bossWeakSpot }
 

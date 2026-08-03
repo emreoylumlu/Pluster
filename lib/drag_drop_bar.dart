@@ -138,6 +138,12 @@ class DragDropBar extends StatelessWidget {
         return const Color(0xFF00B0FF);
       case TileType.contagion:
         return const Color(0xFF76FF03);
+      case TileType.wildcard:
+        return const Color(0xFFFF4081);
+      case TileType.nova:
+        return const Color(0xFFFFD166);
+      case TileType.vortex:
+        return const Color(0xFF00E5FF);
       case TileType.equalizer:
         return const Color(0xFFFFAB40);
       case TileType.normal:
@@ -338,6 +344,12 @@ class _AnimatedDiscSlotState extends State<_AnimatedDiscSlot> with SingleTickerP
         return Icons.ac_unit_rounded;
       case TileType.contagion:
         return Icons.coronavirus_rounded;
+      case TileType.wildcard:
+        return Icons.star_rounded;
+      case TileType.nova:
+        return Icons.flare_rounded;
+      case TileType.vortex:
+        return Icons.cyclone_rounded;
       case TileType.equalizer:
         return Icons.balance_rounded;
       default:

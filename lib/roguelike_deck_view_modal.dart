@@ -29,6 +29,12 @@ class RoguelikeDeckViewModal extends StatelessWidget {
         return isEn ? 'Crystal Tile (❄️)' : 'Kristal Taşı (❄️)';
       case TileType.contagion:
         return isEn ? 'Contagion Tile (☣️)' : 'Veba Taşı (☣️)';
+      case TileType.wildcard:
+        return isEn ? 'Wildcard Tile (🌟)' : 'Joker Taş (🌟)';
+      case TileType.nova:
+        return isEn ? 'Supernova Tile (☀️)' : 'Süpernova Taş (☀️)';
+      case TileType.vortex:
+        return isEn ? 'Vortex Tile (🌀)' : 'Girdap Taş (🌀)';
       case TileType.equalizer:
         return isEn ? 'Equalizer Tile (⚖️)' : 'Eşitleyici Taş (⚖️)';
     }
@@ -50,6 +56,12 @@ class RoguelikeDeckViewModal extends StatelessWidget {
         return Icons.ac_unit_rounded;
       case TileType.contagion:
         return Icons.coronavirus_rounded;
+      case TileType.wildcard:
+        return Icons.star_rounded;
+      case TileType.nova:
+        return Icons.flare_rounded;
+      case TileType.vortex:
+        return Icons.cyclone_rounded;
       case TileType.equalizer:
         return Icons.balance_rounded;
     }
@@ -71,6 +83,12 @@ class RoguelikeDeckViewModal extends StatelessWidget {
         return const Color(0xFF00B0FF);
       case TileType.contagion:
         return const Color(0xFF76FF03);
+      case TileType.wildcard:
+        return const Color(0xFFFF4081);
+      case TileType.nova:
+        return const Color(0xFFFFD166);
+      case TileType.vortex:
+        return const Color(0xFF00E5FF);
       case TileType.equalizer:
         return const Color(0xFFFFAB40);
     }

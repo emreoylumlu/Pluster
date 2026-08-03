@@ -418,7 +418,14 @@ class _PulseGridAppState extends State<PulseGridApp> {
           offeredCards: currentDraftChoices,
           onCardChosen: (chosenCard) {
             setState(() {
+              if (chosenCard.familyId.isNotEmpty) {
+                activeRunState!.unlockedCardIdsThisRun.removeWhere((id) {
+                  final existing = CardPool.byId(id);
+                  return existing.familyId == chosenCard.familyId;
+                });
+              }
               activeRunState!.unlockedCardIdsThisRun.add(chosenCard.id);
+              currentDraftChoices = [];
               isShowingCardDraft = false;
 
               // Check if Act final boss was completed
@@ -456,6 +463,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
             setState(() {
               _completeCurrentRoguelikeNode();
               activeRunNode = null;
+              currentDraftChoices = [];
               isShowingLuckyRoom = false;
               completedLayerIndex = activeRunState?.currentLayer ?? 0;
               isShowingLayerComplete = true;
@@ -472,6 +480,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
             setState(() {
               _completeCurrentRoguelikeNode();
               activeRunNode = null;
+              currentDraftChoices = [];
               isShowingWorkshop = false;
               completedLayerIndex = activeRunState?.currentLayer ?? 0;
               isShowingLayerComplete = true;
@@ -509,6 +518,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
           onNodeSelected: (node) async {
             setState(() {
               activeRunNode = node;
+              currentDraftChoices = [];
             });
             if (node.type == rgl.NodeType.luckyRoom) {
               setState(() => isShowingLuckyRoom = true);
@@ -522,26 +532,9 @@ class _PulseGridAppState extends State<PulseGridApp> {
                 bType = currentActNumber == 1 ? BossType.hydraCoreFinalBoss : BossType.chronosPulsarFinalBoss;
               }
 
-              final meta = await MetaProgressService.loadMetaProgress();
-              final choices = CardDraftService.rollChoices(
-                count: 3,
-                currentLayer: activeRunState!.currentLayer,
-                meta: meta,
-              );
               setState(() {
-                currentDraftChoices = choices;
                 currentBossIntroType = bType;
                 isShowingBossIntro = true;
-              });
-            } else {
-              final meta = await MetaProgressService.loadMetaProgress();
-              final choices = CardDraftService.rollChoices(
-                count: 3,
-                currentLayer: activeRunState!.currentLayer,
-                meta: meta,
-              );
-              setState(() {
-                currentDraftChoices = choices;
               });
             }
           },
@@ -589,6 +582,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
           count: 3,
           currentLayer: activeRunState?.currentLayer ?? 0,
           meta: meta,
+          unlockedCardIdsThisRun: activeRunState?.unlockedCardIdsThisRun ?? [],
         );
         setState(() {
           completedLayerIndex = activeRunState?.currentLayer ?? 0;
@@ -1204,6 +1198,21 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           case 'prism':
             types.add(TileType.prism);
             break;
+          case 'wildcard':
+            types.add(TileType.wildcard);
+            break;
+          case 'nova':
+            types.add(TileType.nova);
+            break;
+          case 'vortex':
+            types.add(TileType.vortex);
+            break;
+          case 'crystal':
+            types.add(TileType.crystal);
+            break;
+          case 'contagion':
+            types.add(TileType.contagion);
+            break;
         }
       }
     }
@@ -1229,6 +1238,16 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
             return TileData(value: 0, type: TileType.prism);
           case TileType.magnet:
             return TileData(value: Random().nextInt(3) + 1, type: TileType.magnet);
+          case TileType.wildcard:
+            return TileData(value: 0, type: TileType.wildcard);
+          case TileType.nova:
+            return TileData(value: 0, type: TileType.nova);
+          case TileType.vortex:
+            return TileData(value: 0, type: TileType.vortex);
+          case TileType.crystal:
+            return TileData(value: Random().nextInt(3) + 1, type: TileType.crystal);
+          case TileType.contagion:
+            return TileData(value: Random().nextInt(3) + 1, type: TileType.contagion);
           default:
             return TileData(value: Random().nextInt(3) + 1, type: chosenType);
         }
@@ -3308,14 +3327,19 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     if (widget.mode == GameMode.endless && score >= 2000) {
       cost += 2.0; // High score energy pressure
     }
-    if (widget.mode == GameMode.roguelike) {
-      if (roguelikeRunState.hasPassive('energy_saver')) {
-        cost *= 0.85;
+    if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+      final rs = widget.roguelikeRunState!;
+      for (var cardId in rs.unlockedCardIdsThisRun) {
+        final card = CardPool.byId(cardId);
+        if (card.familyId == 'energy_saver' || card.familyId == 'passive_shield') {
+          cost *= card.effectValue;
+        }
       }
-      cost *= roguelikeRunState.currentModifier.energyCostMultiplier;
+      if (rs.activeModifiers.containsKey(rgl.CardEffectType.energyCostMultiplier)) {
+        cost *= rs.activeModifiers[rgl.CardEffectType.energyCostMultiplier]!;
+      }
       // ⚡ YILDIRIM TOBU: Aktif savaşlarda -%20 enerji maliyeti
-      if (widget.roguelikeRunState != null &&
-          widget.roguelikeRunState!.energyCostReductionBattlesLeft > 0) {
+      if (rs.energyCostReductionBattlesLeft > 0) {
         cost *= 0.80;
       }
     }
@@ -3439,6 +3463,155 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       _triggerScorePulse();
 
       if (willExplodeMagnet) {
+        await _processPulseQueue(r, c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.wildcard) {
+      HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+      bool willExplodeWildcard = false;
+      setState(() {
+        activeVfxType = 'wildcard';
+        activeVfxKey++;
+        final int targetVal = grid[r][c].value > 0 ? grid[r][c].value : 4;
+        grid[r][c].value = (targetVal + 4).clamp(1, 8);
+        if (grid[r][c].value >= 8) willExplodeWildcard = true;
+      });
+      _showEnergyFloatingText('🌟 JOKER TAŞ: ANINDA EŞLEŞTİ!');
+      _triggerScorePulse();
+      if (willExplodeWildcard) {
+        await _processPulseQueue(r, c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.nova) {
+      HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+      List<_Point> explodingNova = [];
+      setState(() {
+        activeVfxType = 'nova';
+        activeVfxKey++;
+        for (int row = 0; row < 4; row++) {
+          for (int col = 0; col < 4; col++) {
+            if (grid[row][col].specialType != CellSpecialType.locked &&
+                grid[row][col].specialType != CellSpecialType.bossCore) {
+              grid[row][col].value = (grid[row][col].value + 1).clamp(1, 8);
+              if (grid[row][col].value >= 8) {
+                explodingNova.add(_Point(row, col));
+              }
+            }
+          }
+        }
+      });
+      _showEnergyFloatingText('☀️ SÜPERNOVA: TÜM TAHTAYA +1 PULSE!');
+      _triggerScorePulse();
+      for (var np in explodingNova) {
+        await _processPulseQueue(np.r, np.c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.vortex) {
+      HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+      setState(() {
+        activeVfxType = 'vortex';
+        activeVfxKey++;
+        for (int row = 0; row < 4; row++) {
+          for (int col = 0; col < 4; col++) {
+            if (grid[row][col].specialType == CellSpecialType.locked) {
+              grid[row][col].specialType = CellSpecialType.none;
+              grid[row][col].value = 0;
+            }
+          }
+        }
+        List<int> nonZeros = [];
+        for (int row = 0; row < 4; row++) {
+          for (int col = 0; col < 4; col++) {
+            if (grid[row][col].value > 0) {
+              nonZeros.add(grid[row][col].value);
+              grid[row][col].value = 0;
+            }
+          }
+        }
+        int idx = 0;
+        final centerPoints = [_Point(1, 1), _Point(1, 2), _Point(2, 1), _Point(2, 2)];
+        for (var pt in centerPoints) {
+          if (idx < nonZeros.length) {
+            grid[pt.r][pt.c].value = nonZeros[idx++];
+          }
+        }
+      });
+      _showEnergyFloatingText('🌀 GİRDAP: KİLİTLER TEMİZLENDİ VE MERKEZE ÇEKİLDİ!');
+      _triggerScorePulse();
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.crystal) {
+      HapticFeedback.heavyImpact();
+      bool willExplodeCrystal = false;
+      setState(() {
+        activeVfxType = 'crystal';
+        activeVfxKey++;
+        grid[r][c].value = (grid[r][c].value + (tile.value > 0 ? tile.value : 2)).clamp(1, 8);
+        grid[r][c].isCrystal = true;
+        if (grid[r][c].value >= 8) willExplodeCrystal = true;
+      });
+      if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+        MetaProgressService.loadMetaProgress().then((meta) {
+          meta.energyCrystals += 15;
+          MetaProgressService.saveMetaProgress(meta);
+        });
+      }
+      _showEnergyFloatingText('💎 KRİSTAL TAŞ: +15 ENERJİ KRİSTALİ!');
+      _triggerScorePulse();
+      if (willExplodeCrystal) {
+        await _processPulseQueue(r, c);
+      }
+      if (level != null) _checkLevelObjectives();
+      return;
+    }
+
+    if (tile.type == TileType.contagion) {
+      HapticFeedback.heavyImpact();
+      _triggerScreenShake();
+      int infected = 0;
+      bool willExplodeContagion = false;
+      setState(() {
+        activeVfxType = 'contagion';
+        activeVfxKey++;
+        final int targetVal = tile.value > 0 ? tile.value : (grid[r][c].value > 0 ? grid[r][c].value : 4);
+        grid[r][c].value = targetVal;
+        grid[r][c].isContagious = true;
+
+        List<_Point> neighbors = [
+          _Point(r - 1, c),
+          _Point(r + 1, c),
+          _Point(r, c - 1),
+          _Point(r, c + 1)
+        ];
+        for (var n in neighbors) {
+          if (n.r >= 0 && n.r < 4 && n.c >= 0 && n.c < 4) {
+            if (grid[n.r][n.c].specialType != CellSpecialType.locked &&
+                grid[n.r][n.c].specialType != CellSpecialType.bossCore) {
+              grid[n.r][n.c].value = targetVal;
+              grid[n.r][n.c].isContagious = true;
+              infected++;
+            }
+          }
+        }
+        if (grid[r][c].value >= 8) willExplodeContagion = true;
+      });
+      _showEnergyFloatingText('🦠 BULAŞICI TAŞ: $infected HÜCRE DÖNÜŞTÜRÜLDÜ!');
+      _triggerScorePulse();
+      if (willExplodeContagion) {
         await _processPulseQueue(r, c);
       }
       if (level != null) _checkLevelObjectives();
@@ -3680,6 +3853,22 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           energyGained = 90.0;
         }
       }
+
+      if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
+        final rs = widget.roguelikeRunState!;
+        for (var cardId in rs.unlockedCardIdsThisRun) {
+          final card = CardPool.byId(cardId);
+          if (card.familyId == 'combo_starter' ||
+              card.familyId == 'catalyst' ||
+              card.familyId == 'overflow') {
+            basePoints = (basePoints * card.effectValue).round();
+          }
+          if (card.familyId == 'pulse_boost') {
+            energyGained *= card.effectValue;
+          }
+        }
+      }
+
       if (currentSpecial == CellSpecialType.doubleEnergy) {
         energyGained *= 2;
       }
@@ -4325,8 +4514,39 @@ class _BoardVfxOverlayState extends State<_BoardVfxOverlay> with SingleTickerPro
 
   @override
   Widget build(BuildContext context) {
-    final bool isBomb = widget.type == 'bomb';
-    final Color primaryColor = isBomb ? const Color(0xFFFF3D00) : const Color(0xFFB388FF);
+    Color primaryColor;
+    IconData iconData;
+
+    switch (widget.type) {
+      case 'bomb':
+        primaryColor = const Color(0xFFFF3D00);
+        iconData = Icons.local_fire_department_rounded;
+        break;
+      case 'nova':
+        primaryColor = const Color(0xFFFFD166);
+        iconData = Icons.flare_rounded;
+        break;
+      case 'vortex':
+        primaryColor = const Color(0xFF00E5FF);
+        iconData = Icons.cyclone_rounded;
+        break;
+      case 'crystal':
+        primaryColor = const Color(0xFF00B0FF);
+        iconData = Icons.diamond_rounded;
+        break;
+      case 'contagion':
+        primaryColor = const Color(0xFF76FF03);
+        iconData = Icons.coronavirus_rounded;
+        break;
+      case 'wildcard':
+        primaryColor = const Color(0xFFFF4081);
+        iconData = Icons.star_rounded;
+        break;
+      default:
+        primaryColor = const Color(0xFFB388FF);
+        iconData = Icons.electric_bolt_rounded;
+        break;
+    }
 
     return AnimatedBuilder(
       animation: _controller,
@@ -4358,7 +4578,7 @@ class _BoardVfxOverlayState extends State<_BoardVfxOverlay> with SingleTickerPro
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isBomb ? const Color(0xFFFF9100).withValues(alpha: opacity) : const Color(0xFFE040FB).withValues(alpha: opacity),
+                          color: primaryColor.withValues(alpha: opacity),
                           width: 4,
                         ),
                         boxShadow: [
@@ -4377,9 +4597,9 @@ class _BoardVfxOverlayState extends State<_BoardVfxOverlay> with SingleTickerPro
                   child: Opacity(
                     opacity: opacity,
                     child: Icon(
-                      isBomb ? Icons.local_fire_department : Icons.electric_bolt_rounded,
+                      iconData,
                       size: 80 * (1.0 + value * 0.5),
-                      color: isBomb ? const Color(0xFFFFEA00) : const Color(0xFF7FFFD4),
+                      color: primaryColor,
                     ),
                   ),
                 ),

@@ -13,7 +13,7 @@ void main() {
     print('==================================================\n');
 
     final String seed = 'test_run_success_456';
-    final RunMap map = MapGenerator.generateMap(seed: seed);
+    final RunMap map = MapGenerator.generateMapForAct(seed: seed, actNumber: 1);
     final MetaProgressState meta = MetaProgressState(
       energyCrystals: 500,
       permanentlyUnlockedCardIds: {'card_unlock_magnet', 'card_unlock_prism', 'card_reactor', 'card_unlock_nova', 'card_catalyst'},

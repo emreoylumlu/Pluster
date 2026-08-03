@@ -15,6 +15,8 @@ enum CardEffectType {
 
 class CardDefinition {
   final String id;
+  final String familyId;
+  final int tierLevel; // 1, 2, 3
   final String name;
   final String description;
   final CardTier tier;
@@ -25,6 +27,8 @@ class CardDefinition {
 
   const CardDefinition({
     required this.id,
+    this.familyId = '',
+    this.tierLevel = 1,
     required this.name,
     required this.description,
     required this.tier,

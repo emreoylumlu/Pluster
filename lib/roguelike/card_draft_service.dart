@@ -7,42 +7,64 @@ class CardDraftService {
     required int count,
     required int currentLayer,
     required MetaProgressState meta,
+    List<String> unlockedCardIdsThisRun = const [],
     Random? customRandom,
   }) {
     final rand = customRandom ?? Random();
 
-    // 1. Kat bazlı izin verilen kademeleri (Tier) belirle
-    final Set<CardTier> allowedTiers = {CardTier.basic};
-    if (currentLayer >= 2) {
-      allowedTiers.add(CardTier.mid);
-    }
-    if (currentLayer >= 4) {
-      allowedTiers.add(CardTier.rare);
-    }
-
-    // 2. Havuz Filtreleme:
-    final List<CardDefinition> eligiblePool = CardPool.allCards.where((card) {
-      if (!allowedTiers.contains(card.tier)) return false;
-
-      if (card.tier == CardTier.basic) {
-        return true;
-      } else {
-        return meta.permanentlyUnlockedCardIds.contains(card.id);
+    // Map owned families to highest tier level owned
+    final Map<String, int> ownedFamilyMaxTier = {};
+    for (var cardId in unlockedCardIdsThisRun) {
+      final card = CardPool.byId(cardId);
+      if (card.familyId.isNotEmpty) {
+        int current = ownedFamilyMaxTier[card.familyId] ?? 0;
+        if (card.tierLevel > current) {
+          ownedFamilyMaxTier[card.familyId] = card.tierLevel;
+        }
       }
-    }).toList();
+    }
+
+    final Set<CardTier> allowedTiers = {CardTier.basic};
+    if (currentLayer >= 1) allowedTiers.add(CardTier.mid);
+    if (currentLayer >= 3) allowedTiers.add(CardTier.rare);
+
+    final List<CardDefinition> eligiblePool = [];
+
+    // Group all cards by familyId
+    final Map<String, List<CardDefinition>> familyMap = {};
+    for (var card in CardPool.allCards) {
+      final key = card.familyId.isNotEmpty ? card.familyId : card.id;
+      familyMap.putIfAbsent(key, () => []).add(card);
+    }
+
+    for (var entry in familyMap.entries) {
+      final familyCards = entry.value;
+      int highestOwned = ownedFamilyMaxTier[entry.key] ?? 0;
+      int targetTier = highestOwned + 1;
+
+      if (highestOwned < 3) {
+        final matchingCard = familyCards.firstWhere(
+          (c) => c.tierLevel == targetTier,
+          orElse: () => familyCards.firstWhere((c) => c.tierLevel == 1, orElse: () => familyCards.first),
+        );
+        if (allowedTiers.contains(matchingCard.tier) || matchingCard.tier == CardTier.basic) {
+          eligiblePool.add(matchingCard);
+        }
+      }
+    }
 
     if (eligiblePool.length < count) {
       eligiblePool.addAll(CardPool.byTier(CardTier.basic));
     }
 
-    // 3. Rastgele Benzersiz Kartlar Seç
     eligiblePool.shuffle(rand);
-    final Set<String> pickedIds = {};
+    final Set<String> pickedFamilies = {};
     final List<CardDefinition> result = [];
 
     for (var card in eligiblePool) {
-      if (!pickedIds.contains(card.id)) {
-        pickedIds.add(card.id);
+      final famKey = card.familyId.isNotEmpty ? card.familyId : card.id;
+      if (!pickedFamilies.contains(famKey)) {
+        pickedFamilies.add(famKey);
         result.add(card);
       }
       if (result.length >= count) break;
