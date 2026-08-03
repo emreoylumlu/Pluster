@@ -29,6 +29,7 @@ import 'roguelike/screens/lucky_room_screen.dart';
 import 'roguelike/screens/workshop_screen.dart';
 import 'roguelike/screens/layer_complete_screen.dart';
 import 'roguelike/screens/boss_intro_screen.dart';
+import 'roguelike/boss_mechanics.dart';
 
 import 'persistence_manager.dart';
 
@@ -525,8 +526,16 @@ class _PulseGridAppState extends State<PulseGridApp> {
             } else if (node.type == rgl.NodeType.workshop) {
               setState(() => isShowingWorkshop = true);
             } else if (node.type == rgl.NodeType.miniBoss || node.type == rgl.NodeType.finalBoss) {
+              final bossTypeEnum = node.objectiveConfig?['bossTypeEnum'] as String?;
               BossType bType;
-              if (node.type == rgl.NodeType.miniBoss) {
+              if (bossTypeEnum != null) {
+                bType = BossType.values.firstWhere(
+                  (type) => type.name == bossTypeEnum,
+                  orElse: () => node.type == rgl.NodeType.finalBoss
+                      ? (currentActNumber == 1 ? BossType.hydraCoreFinalBoss : BossType.chronosPulsarFinalBoss)
+                      : (currentActNumber == 1 ? BossType.chaosMiniBoss : BossType.corruptedTileMiniBoss),
+                );
+              } else if (node.type == rgl.NodeType.miniBoss) {
                 bType = currentActNumber == 1 ? BossType.chaosMiniBoss : BossType.corruptedTileMiniBoss;
               } else {
                 bType = currentActNumber == 1 ? BossType.hydraCoreFinalBoss : BossType.chronosPulsarFinalBoss;
@@ -722,7 +731,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   // ── Boss Stage Tracking ──────────────────────
   bool isBossStage = false;
-  String bossType = ''; // 'shield_core', 'weak_spot', 'apex_boss'
+  String bossType = ''; // 'shield_core', 'weak_spot', 'apex_boss', etc.
   String bossName = '';
   String bossDesc = '';
   int bossHp = 0;
@@ -731,6 +740,19 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   _Point? weakSpotPoint;
   int bossActionCounter = 0;
   bool isBossEnraged = false;
+  String bossThreatState = 'idle';
+  String bossThreatType = '';
+  String bossThreatMessage = '';
+  _Point? bossThreatCell;
+
+  // ── 8 New Mini-Boss Tracking ──────────────────
+  int voltBombCountdown = 3;
+  _Point? voltBombPoint;
+  int? frozenRowIndex;
+  int frozenTurnsLeft = 0;
+  bool isMysteryMode = false;
+  bool isEnergyDrainerActive = false;
+  bool isEnergyThiefActive = false;
 
   late RoguelikeRunState roguelikeRunState;
   bool isShowingDraftModal = false;
@@ -1008,19 +1030,49 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           (rNode.type == rgl.NodeType.miniBoss || rNode.type == rgl.NodeType.finalBoss)) {
         isBossStage = true;
         final config = rNode.objectiveConfig ?? {};
-        bossType = config['bossType'] as String? ?? 'shield_core';
-        bossName = config['bossName'] as String? ?? (rNode.type == rgl.NodeType.finalBoss ? 'EFSANEVİ KRİZ ÇEKİRDEĞİ' : 'ŞOK ÇEKİRDEĞİ');
-        bossDesc = config['bossDesc'] as String? ?? 'Etrafında patlama yaparak Boss\'un Canını düşür!';
-        bossMaxHp = config['bossHp'] as int? ?? 10;
+        final String bossEnumStr = config['bossTypeEnum'] as String? ?? '';
+
+        if (bossEnumStr.isNotEmpty) {
+          bossType = bossEnumStr;
+          final bInfo = BossInfo.getInfo(BossType.values.firstWhere(
+            (e) => e.name == bossEnumStr,
+            orElse: () => BossType.chaosMiniBoss,
+          ));
+          bossName = bInfo.name;
+          bossDesc = bInfo.subtitle;
+        } else {
+          bossType = config['bossType'] as String? ?? 'shield_core';
+          bossName = config['bossName'] as String? ?? (rNode.type == rgl.NodeType.finalBoss ? 'EFSANEVİ KRİZ ÇEKİRDEĞİ' : 'ŞOK ÇEKİRDEĞİ');
+          bossDesc = config['bossDesc'] as String? ?? 'Etrafında patlama yaparak Boss\'un Canını düşür!';
+        }
+
+        bossMaxHp = config['bossHp'] as int? ?? (bossType == 'energyThiefMiniBoss' ? 3200 : 10);
         bossHp = bossMaxHp;
         bossActionCounter = 0;
         isBossEnraged = false;
+        bossThreatState = 'idle';
+        bossThreatType = '';
+        bossThreatMessage = '';
+        bossThreatCell = null;
 
-        // Grid merkezindeki 2x2 hücreleri Boss Çekirdeği yap
-        bossCoreCells = [_Point(1, 1), _Point(1, 2), _Point(2, 1), _Point(2, 2)];
-        for (var pt in bossCoreCells) {
-          grid[pt.r][pt.c].specialType = CellSpecialType.bossCore;
-          grid[pt.r][pt.c].value = 0;
+        // Reset mini-boss states
+        voltBombCountdown = 3;
+        voltBombPoint = null;
+        frozenRowIndex = null;
+        frozenTurnsLeft = 0;
+        isMysteryMode = (bossType == 'mysteryMiniBoss');
+        isEnergyDrainerActive = (bossType == 'energyDrainerMiniBoss');
+        isEnergyThiefActive = (bossType == 'energyThiefMiniBoss');
+
+        // Center 2x2 boss core cells for core boss types
+        if (bossType == 'shield_core' || bossType == 'hydraCoreFinalBoss' || bossType == 'apex_boss') {
+          bossCoreCells = [_Point(1, 1), _Point(1, 2), _Point(2, 1), _Point(2, 2)];
+          for (var pt in bossCoreCells) {
+            grid[pt.r][pt.c].specialType = CellSpecialType.bossCore;
+            grid[pt.r][pt.c].value = 0;
+          }
+        } else {
+          bossCoreCells = [];
         }
 
         if (bossType == 'weak_spot') {
@@ -1030,6 +1082,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         isBossStage = false;
         bossCoreCells = [];
         weakSpotPoint = null;
+        voltBombPoint = null;
+        frozenRowIndex = null;
+        frozenTurnsLeft = 0;
+        isMysteryMode = false;
+        isEnergyDrainerActive = false;
+        isEnergyThiefActive = false;
         _assignRandomSpecialCells();
       }
 
@@ -1531,6 +1589,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                       highScore: highScore,
                       isLowEnergy: isLowEnergy,
                       isStageMode: widget.level != null,
+                      showStatsPanel: widget.mode == GameMode.endless,
                       language: widget.currentLanguage,
                       dangerPulse: _dangerPulseController,
                       energyFloatingText: energyFloatingText,
@@ -3051,6 +3110,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     if (cell.specialType == CellSpecialType.shield) return Icons.shield_rounded;
     if (cell.specialType == CellSpecialType.overheat) return Icons.whatshot_rounded;
     if (cell.specialType == CellSpecialType.crystalVein) return Icons.diamond_rounded;
+    if (cell.specialType == CellSpecialType.corrupted) return Icons.bug_report_rounded;
     if (cell.isMultiplier) return Icons.clear_rounded;
     if (cell.isCrystal) return Icons.ac_unit_rounded;
     if (cell.isContagious) return Icons.coronavirus_rounded;
@@ -3066,6 +3126,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     if (cell.specialType == CellSpecialType.shield) return const Color(0xFF00E676);
     if (cell.specialType == CellSpecialType.overheat) return const Color(0xFFFF5252);
     if (cell.specialType == CellSpecialType.crystalVein) return const Color(0xFFFF4081);
+    if (cell.specialType == CellSpecialType.corrupted) return const Color(0xFFFF5252);
     if (cell.isMultiplier) return const Color(0xFFFFD166);
     if (cell.isCrystal) return const Color(0xFF00B0FF);
     if (cell.isContagious) return const Color(0xFF76FF03);
@@ -3121,6 +3182,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                         onWillAcceptWithDetails: (details) {
                           if (isProcessingPulse || isGameOver || isLevelComplete || isLevelFailed) return false;
                           if (cell.specialType == CellSpecialType.locked) return false;
+                          if (cell.specialType == CellSpecialType.frozen || (frozenRowIndex != null && frozenTurnsLeft > 0 && r == frozenRowIndex)) return false;
 
                           TileData tile = details.data;
                           if (tile.type == TileType.bomb || tile.type == TileType.prism) return true;
@@ -3131,15 +3193,16 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                         },
                         builder: (context, candidateData, rejectedData) {
                           final bool isHovered = candidateData.isNotEmpty;
+                          final bool showMystery = isMysteryMode && cell.value > 0;
                           return Stack(
                             children: [
                               AnimatedGameTile(
-                                key: ValueKey<String>('cell_${r}_${c}_${cell.value}_${cell.specialType}_${cell.isMultiplier}'),
-                                number: cell.value > 0 ? cell.value : null,
+                                key: ValueKey<String>('cell_${r}_${c}_${cell.value}_${cell.specialType}_${cell.isMultiplier}_$isMysteryMode'),
+                                number: showMystery ? null : (cell.value > 0 ? cell.value : null),
                                 color: _tileColorForCell(cell),
-                                badgeIcon: _badgeIconForCell(cell),
-                                badgeText: _badgeTextForCell(cell),
-                                badgeColor: _badgeColorForCell(cell),
+                                badgeIcon: showMystery ? Icons.help_outline_rounded : _badgeIconForCell(cell),
+                                badgeText: showMystery ? '?' : _badgeTextForCell(cell),
+                                badgeColor: showMystery ? const Color(0xFF00E5FF) : _badgeColorForCell(cell),
                                 isLocked: cell.specialType == CellSpecialType.locked,
                                 size: tileSize,
                               ),
@@ -3681,31 +3744,13 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       }
 
       // ── Boss Karşı Saldırı Mantığı ──
-      if (isBossStage && bossHp > 0) {
+      if (isBossStage) {
         bossActionCounter++;
-        if (bossType == 'shield_core') {
-          if (bossActionCounter % 3 == 0) {
-            _applyStoneCurse();
-            _showEnergyFloatingText('🛡️ BOSS: KİLİT SALDIRISI!');
-          }
-        } else if (bossType == 'weak_spot') {
-          if (bossActionCounter % 2 == 0) {
-            _updateWeakSpotCell();
-            _showEnergyFloatingText('🎯 ZAYIF NOKTA DEĞİŞTİ!');
-          }
-        } else if (bossType == 'apex_boss') {
-          if (isBossEnraged) {
-            if (bossActionCounter % 2 == 0) {
-              _applyStoneCurse();
-              energy = (energy - 5.0).clamp(0.0, 100.0);
-              _showEnergyFloatingText('🔥 ÖFKE SALDIRISI! -5 ENERJİ');
-            }
-          } else {
-            if (bossActionCounter % 3 == 0) {
-              _applyStoneCurse();
-              _showEnergyFloatingText('⚡ BOSS: KİLİT SALDIRISI!');
-            }
-          }
+
+        if (bossThreatState == 'idle') {
+          _startBossTelegraph();
+        } else if (bossThreatState == 'telegraph') {
+          _resolveBossThreat();
         }
       }
     }
@@ -3733,6 +3778,314 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     } else {
       _checkRoguelikeDraftTrigger();
     }
+  }
+
+  _Point? _pickBossThreatCell({required bool requireOccupied}) {
+    final candidates = <_Point>[];
+    for (int r = 0; r < 4; r++) {
+      for (int c = 0; c < 4; c++) {
+        final cell = grid[r][c];
+        if (cell.specialType == CellSpecialType.locked || cell.specialType == CellSpecialType.bossCore) {
+          continue;
+        }
+        if (requireOccupied && cell.value <= 0) {
+          continue;
+        }
+        candidates.add(_Point(r, c));
+      }
+    }
+    if (candidates.isEmpty) return null;
+    return candidates[Random().nextInt(candidates.length)];
+  }
+
+  void _startBossTelegraph() {
+    if (!isBossStage || bossThreatState != 'idle') return;
+
+    final target = _pickBossThreatCell(requireOccupied: true);
+    if (target == null) return;
+
+    bossThreatCell = target;
+    switch (bossType) {
+      case 'chaosMiniBoss':
+        bossThreatType = 'chaos';
+        bossThreatMessage = '⚠️ KAOS: Bir hücre takas edilecek';
+        break;
+      case 'corruptedTileMiniBoss':
+        bossThreatType = 'corrupted';
+        bossThreatMessage = '⚠️ BOZUK VERİ: Bir hücre bozulacak';
+        break;
+      case 'voltBomberMiniBoss':
+        bossThreatType = 'volt';
+        bossThreatMessage = '⚠️ VOLTAJ: Bir hücre bombaya dönüşecek';
+        break;
+      case 'energyThiefMiniBoss':
+        bossThreatType = 'energy';
+        bossThreatMessage = '⚠️ ENERJİ HIRSIZI: Bir hücre enerji çekecek';
+        break;
+      case 'stoneMonsterMiniBoss':
+        bossThreatType = 'stone';
+        bossThreatMessage = '⚠️ TAŞ CANAVARI: Bir hücre taşlaşacak';
+        break;
+      case 'earthquakeMiniBoss':
+        bossThreatType = 'earthquake';
+        bossThreatMessage = '⚠️ DEPREM: Bir hücre değer kaybedecek';
+        break;
+      case 'iceSprayerMiniBoss':
+        bossThreatType = 'ice';
+        bossThreatMessage = '⚠️ BUZ: Bir hücre dondurulacak';
+        break;
+      case 'decayLordMiniBoss':
+        bossThreatType = 'decay';
+        bossThreatMessage = '⚠️ ÇÜRÜME: Bir hücre çürümeye başlayacak';
+        break;
+      case 'hydraCoreFinalBoss':
+        bossThreatType = 'hydra';
+        bossThreatMessage = '⚠️ HYDRA: Bir zayıf nokta açılacak';
+        break;
+      case 'chronosPulsarFinalBoss':
+        bossThreatType = 'chronos';
+        bossThreatMessage = '⚠️ CHRONOS: Bir hücre zaman dışı olacak';
+        break;
+      default:
+        bossThreatType = 'generic';
+        bossThreatMessage = '⚠️ BOSS: Bir hücreye müdahale edilecek';
+    }
+
+    bossThreatState = 'telegraph';
+    _showEnergyFloatingText(bossThreatMessage);
+  }
+
+  void _resolveBossCounterplay() {
+    if (bossThreatState != 'telegraph' || bossThreatCell == null) return;
+
+    setState(() {
+      bossThreatState = 'idle';
+      bossThreatType = '';
+      bossThreatMessage = '';
+      bossThreatCell = null;
+    });
+
+    _showEnergyFloatingText('✅ KARŞI HAMLE! +120 SKOR');
+    _updateScore(120);
+    energy = (energy + 6.0).clamp(0.0, 100.0);
+    bossHp = (bossHp - 1).clamp(0, bossMaxHp);
+  }
+
+  void _resolveBossThreat() {
+    if (!isBossStage || bossThreatState != 'telegraph' || bossThreatCell == null) return;
+
+    final point = bossThreatCell!;
+    switch (bossThreatType) {
+      case 'chaos':
+        final neighbor = _findAdjacentCell(point);
+        if (neighbor != null) {
+          setState(() {
+            final temp = grid[point.r][point.c].value;
+            grid[point.r][point.c].value = grid[neighbor.r][neighbor.c].value;
+            grid[neighbor.r][neighbor.c].value = temp;
+          });
+        }
+        _showEnergyFloatingText('🌀 KAOS: İKİ HÜCRE TAKAS ETTİ');
+        break;
+      case 'corrupted':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.corrupted;
+          grid[point.r][point.c].value = (grid[point.r][point.c].value > 0 ? grid[point.r][point.c].value : 2).clamp(1, 8);
+        });
+        _showEnergyFloatingText('👾 BOZUK VERİ: HÜCRE BOZULDU');
+        break;
+      case 'volt':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.voltBomb;
+          grid[point.r][point.c].value = 2;
+        });
+        _showEnergyFloatingText('💣 VOLTAJ: BOMBAYA DÖNÜŞTÜ');
+        break;
+      case 'energy':
+        setState(() {
+          grid[point.r][point.c].value = (grid[point.r][point.c].value - 1).clamp(1, 8);
+        });
+        energy = (energy - 6.0).clamp(0.0, 100.0);
+        _showEnergyFloatingText('⚡ ENERJİ HIRSIZI: -6 ENERJİ');
+        break;
+      case 'stone':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.locked;
+        });
+        _showEnergyFloatingText('🗿 TAŞ CANAVARI: HÜCRE TAŞLAŞTI');
+        break;
+      case 'earthquake':
+        setState(() {
+          grid[point.r][point.c].value = (grid[point.r][point.c].value - 1).clamp(1, 8);
+        });
+        _showEnergyFloatingText('🌍 DEPREM: HÜCRE DEĞER KAYBETTİ');
+        break;
+      case 'ice':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.frozen;
+        });
+        _showEnergyFloatingText('❄️ BUZ: HÜCRE DONDU');
+        break;
+      case 'decay':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.decay;
+          grid[point.r][point.c].value = (grid[point.r][point.c].value - 1).clamp(1, 8);
+        });
+        _showEnergyFloatingText('🦠 ÇÜRÜME: HÜCRE ÇÜRÜDÜ');
+        break;
+      case 'hydra':
+        setState(() {
+          grid[point.r][point.c].specialType = CellSpecialType.bossWeakSpot;
+          grid[point.r][point.c].value = (grid[point.r][point.c].value > 0 ? grid[point.r][point.c].value : 2).clamp(1, 8);
+        });
+        _showEnergyFloatingText('👑 HYDRA: ZAYIF NOKTA AÇILDI');
+        break;
+      case 'chronos':
+        setState(() {
+          grid[point.r][point.c].value = (grid[point.r][point.c].value - 1).clamp(1, 8);
+        });
+        _showEnergyFloatingText('⏳ CHRONOS: HÜCRE ZAMAN DIŞI');
+        break;
+      default:
+        _showEnergyFloatingText('⚠️ BOSS ETKİSİ');
+    }
+
+    setState(() {
+      bossThreatState = 'idle';
+      bossThreatType = '';
+      bossThreatMessage = '';
+      bossThreatCell = null;
+    });
+  }
+
+  _Point? _findAdjacentCell(_Point point) {
+    final candidates = <_Point>[];
+    for (int r = point.r - 1; r <= point.r + 1; r += 2) {
+      if (r >= 0 && r < 4) {
+        candidates.add(_Point(r, point.c));
+      }
+    }
+    for (int c = point.c - 1; c <= point.c + 1; c += 2) {
+      if (c >= 0 && c < 4) {
+        candidates.add(_Point(point.r, c));
+      }
+    }
+    if (candidates.isEmpty) return null;
+    return candidates[Random().nextInt(candidates.length)];
+  }
+
+  void _applyVoltBomberAttack() {
+    if (voltBombPoint == null || grid[voltBombPoint!.r][voltBombPoint!.c].specialType != CellSpecialType.voltBomb) {
+      List<_Point> emptyCells = [];
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].value == 0 && grid[r][c].specialType == CellSpecialType.none) {
+            emptyCells.add(_Point(r, c));
+          }
+        }
+      }
+      if (emptyCells.isNotEmpty) {
+        final pt = emptyCells[Random().nextInt(emptyCells.length)];
+        setState(() {
+          grid[pt.r][pt.c].specialType = CellSpecialType.voltBomb;
+          grid[pt.r][pt.c].value = 2;
+          voltBombPoint = pt;
+          voltBombCountdown = 3;
+        });
+        _showEnergyFloatingText('💣 VOLT BOMBASI BİRİKTİ (3 Tur)');
+      }
+    } else {
+      setState(() {
+        voltBombCountdown--;
+      });
+      if (voltBombCountdown <= 0) {
+        setState(() {
+          energy = (energy - 15.0).clamp(0.0, 100.0);
+          if (voltBombPoint != null) {
+            grid[voltBombPoint!.r][voltBombPoint!.c].specialType = CellSpecialType.none;
+            grid[voltBombPoint!.r][voltBombPoint!.c].value = 0;
+            voltBombPoint = null;
+          }
+        });
+        _showEnergyFloatingText('💥 VOLT BOMBASI PATLADI! -15⚡');
+        _triggerEnergyPulse(false);
+      }
+    }
+  }
+
+  void _applyEnergyThiefAttack() {
+    setState(() {
+      energy = (energy - 5.0).clamp(0.0, 100.0);
+    });
+    List<_Point> validCells = [];
+    for (int r = 0; r < 4; r++) {
+      for (int c = 0; c < 4; c++) {
+        if (grid[r][c].value > 0 && grid[r][c].value < 8 && grid[r][c].specialType != CellSpecialType.locked && grid[r][c].specialType != CellSpecialType.bossCore) {
+          validCells.add(_Point(r, c));
+        }
+      }
+    }
+    if (validCells.isNotEmpty) {
+      final pt = validCells[Random().nextInt(validCells.length)];
+      setState(() {
+        grid[pt.r][pt.c].value = (grid[pt.r][pt.c].value + 2).clamp(1, 8);
+      });
+      if (grid[pt.r][pt.c].value >= 8) {
+        _processPulseQueue(pt.r, pt.c);
+        _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡ & TAŞ HÜCRESİ PATLATILDI!');
+      } else {
+        _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡ & HÜCREYE +2 VE ŞARJ!');
+      }
+    } else {
+      _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡');
+    }
+  }
+
+  void _applyEarthquakeAttack() {
+    _triggerScreenShake();
+    setState(() {
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].value > 1 && grid[r][c].specialType != CellSpecialType.locked && grid[r][c].specialType != CellSpecialType.bossCore) {
+            grid[r][c].value = max(1, grid[r][c].value - 1);
+          }
+        }
+      }
+    });
+    _showEnergyFloatingText('🌍 DEPREM! TÜM TAŞLAR DEĞER KAYBETTİ (-1)');
+  }
+
+  void _applyIceSprayerAttack() {
+    setState(() {
+      frozenRowIndex = Random().nextInt(4);
+      frozenTurnsLeft = 1;
+    });
+    _showEnergyFloatingText('❄️ BUZ PÜSKÜRTEN: SATIR ${frozenRowIndex! + 1} DONDU!');
+  }
+
+  void _applyDecayLordAttack() {
+    List<_Point> cleanCells = [];
+    for (int r = 0; r < 4; r++) {
+      for (int c = 0; c < 4; c++) {
+        if (grid[r][c].specialType == CellSpecialType.none && grid[r][c].value > 0) {
+          cleanCells.add(_Point(r, c));
+        }
+      }
+    }
+    setState(() {
+      if (cleanCells.isNotEmpty) {
+        final pt = cleanCells[Random().nextInt(cleanCells.length)];
+        grid[pt.r][pt.c].specialType = CellSpecialType.decay;
+      }
+      for (int r = 0; r < 4; r++) {
+        for (int c = 0; c < 4; c++) {
+          if (grid[r][c].specialType == CellSpecialType.decay) {
+            grid[r][c].value = max(1, grid[r][c].value - 1);
+          }
+        }
+      }
+    });
+    _showEnergyFloatingText('🦠 ÇÜRÜME EFENDİSİ: SALGIN YAYILDI!');
   }
 
   void _applyStoneCurse() {
@@ -3840,6 +4193,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         basePoints *= 2;
       }
 
+      if (currentSpecial == CellSpecialType.corrupted) {
+        basePoints = 0;
+        _showEnergyFloatingText('👾 BOZUK TAŞ: -5⚡');
+      }
+
       // Enerji Kazanımı
       double energyGained = 20.0 * comboCount;
       if (widget.mode == GameMode.endless) {
@@ -3871,6 +4229,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       if (currentSpecial == CellSpecialType.doubleEnergy) {
         energyGained *= 2;
+      }
+      if (currentSpecial == CellSpecialType.corrupted) {
+        energyGained = -5.0;
+      }
+      if (isEnergyDrainerActive) {
+        energyGained *= 0.75;
+      }
+      if (currentSpecial == CellSpecialType.voltBomb) {
+        basePoints += 500;
+        energyGained += 15.0;
+        _showEnergyFloatingText('💣 VOLT BOMBASI İMHA EDİLDİ! +500 SKOR & +15⚡');
+        voltBombPoint = null;
       }
 
       // Çarpan patlama sayacı
@@ -3940,8 +4310,13 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       int wavePower = wasMultiplier ? 2 : 1;
 
+      if (bossThreatState == 'telegraph' && bossThreatCell != null && bossThreatCell!.r == r && bossThreatCell!.c == c) {
+        _resolveBossCounterplay();
+      }
+
       // ── Boss Hasar Mantığı ──
       if (isBossStage && bossHp > 0) {
+        final bool hasBossCore = bossCoreCells.isNotEmpty;
         bool touchesBoss = false;
         for (var bc in bossCoreCells) {
           if ((bc.r - r).abs() + (bc.c - c).abs() == 1) {
@@ -3950,56 +4325,64 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           }
         }
 
-        if (touchesBoss) {
-          int damage = 1;
-          String dmgTag = '💥 BOSS -1 HP';
+        final bool shouldDamage = hasBossCore ? touchesBoss : comboCount >= 2;
+        if (shouldDamage) {
+          final bool isWeakSpotHit = currentSpecial == CellSpecialType.bossWeakSpot ||
+              (weakSpotPoint != null && weakSpotPoint!.r == r && weakSpotPoint!.c == c);
+          final bool isCritical = wasMultiplier || currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal;
+          final int damage = BossMechanics.calculateBossDamage(
+            isWeakSpot: isWeakSpotHit,
+            wasMultiplier: wasMultiplier,
+            isEmpOrDiagonal: currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal,
+            comboCount: comboCount,
+          );
 
-          if (currentSpecial == CellSpecialType.bossWeakSpot ||
-              (weakSpotPoint != null && weakSpotPoint!.r == r && weakSpotPoint!.c == c)) {
-            damage = 3;
-            dmgTag = '🎯 ZAYIF NOKTA! -3 HP';
-            HapticFeedback.vibrate();
-          } else if (wasMultiplier || currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal) {
-            damage = 2;
-            dmgTag = '⚡ KRİTİK HİT! -2 HP';
-          }
+          if (damage > 0) {
+            String dmgTag = '💥 BOSS -${damage} HP';
+            if (isWeakSpotHit) {
+              dmgTag = '🎯 ZAYIF NOKTA! -3 HP';
+              HapticFeedback.vibrate();
+            } else if (isCritical) {
+              dmgTag = '⚡ KRİTİK HİT! -2 HP';
+            }
 
-          setState(() {
-            bossHp = (bossHp - damage).clamp(0, bossMaxHp);
-          });
-          _showEnergyFloatingText(dmgTag);
-          _triggerScreenShake();
-
-          // Apex Boss Faz 2 (Öfke Modu) Geçişi
-          if (bossType == 'apex_boss' && bossHp <= bossMaxHp ~/ 2 && !isBossEnraged) {
-            setState(() => isBossEnraged = true);
-            _showEnergyFloatingText('🔥 ÖFKE MODU! BOSS SALDIRIYOR!');
-            _applyStoneCurse();
-          }
-
-          // Boss Yenildi Mantığı
-          if (bossHp <= 0) {
-            _showEnergyFloatingText('🏆 BOSS BOZGUN A UĞRATILDI!');
-            HapticFeedback.vibrate();
+            setState(() {
+              bossHp = (bossHp - damage).clamp(0, bossMaxHp);
+            });
+            _showEnergyFloatingText(dmgTag);
             _triggerScreenShake();
 
-            // Boss hücrelerini temizle
-            setState(() {
-              for (var bc in bossCoreCells) {
-                grid[bc.r][bc.c].specialType = CellSpecialType.none;
-              }
-              if (weakSpotPoint != null) {
-                grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType = CellSpecialType.none;
-                weakSpotPoint = null;
-              }
-            });
+            // Apex Boss Faz 2 (Öfke Modu) Geçişi
+            if (bossType == 'apex_boss' && bossHp <= bossMaxHp ~/ 2 && !isBossEnraged) {
+              setState(() => isBossEnraged = true);
+              _showEnergyFloatingText('🔥 ÖFKE MODU! BOSS SALDIRIYOR!');
+              _applyStoneCurse();
+            }
 
-            // Kazanma ekranını tetikle
-            Future.delayed(const Duration(milliseconds: 600), () {
-              if (mounted && widget.onRoguelikeNodeWin != null) {
-                widget.onRoguelikeNodeWin?.call();
-              }
-            });
+            // Boss Yenildi Mantığı
+            if (bossHp <= 0) {
+              _showEnergyFloatingText('🏆 BOSS BOZGUN A UĞRATILDI!');
+              HapticFeedback.vibrate();
+              _triggerScreenShake();
+
+              // Boss hücrelerini temizle
+              setState(() {
+                for (var bc in bossCoreCells) {
+                  grid[bc.r][bc.c].specialType = CellSpecialType.none;
+                }
+                if (weakSpotPoint != null) {
+                  grid[weakSpotPoint!.r][weakSpotPoint!.c].specialType = CellSpecialType.none;
+                  weakSpotPoint = null;
+                }
+              });
+
+              // Kazanma ekranını tetikle
+              Future.delayed(const Duration(milliseconds: 600), () {
+                if (mounted && widget.onRoguelikeNodeWin != null) {
+                  widget.onRoguelikeNodeWin?.call();
+                }
+              });
+            }
           }
         }
       }

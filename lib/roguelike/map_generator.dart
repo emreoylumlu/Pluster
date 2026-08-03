@@ -13,9 +13,7 @@ class MapGenerator {
     final List<List<MapNode>> layers = [];
     final int totalLayers = 15;
 
-    final BossType actMiniBoss = actNumber == 1
-        ? BossType.chaosMiniBoss
-        : (actNumber == 2 ? BossType.corruptedTileMiniBoss : BossType.chaosMiniBoss);
+    final BossType actMiniBoss = getMiniBossForAct(rand, actNumber);
 
     final BossType actFinalBoss = actNumber == 1
         ? BossType.hydraCoreFinalBoss
@@ -44,7 +42,6 @@ class MapGenerator {
         final NodeType type = _getRandomNodeTypeForLayer(rand, layerIdx);
         final String nodeId = 'act_${actNumber}_n${layerIdx}_$i';
 
-        // Connect to next layer
         final List<String> nextConnections = [];
         if (layerIdx == 6) {
           nextConnections.add('act_${actNumber}_miniboss');
@@ -69,13 +66,18 @@ class MapGenerator {
           }
         }
 
+        final Map<String, dynamic> objConfig = _buildObjectiveConfig(layerIdx, type, actNumber);
+        if (type == NodeType.miniBoss) {
+          objConfig['bossTypeEnum'] = getMiniBossForAct(rand, actNumber).name;
+        }
+
         layerNodes.add(
           MapNode(
             id: nodeId,
             layer: layerIdx,
             type: type,
             connectedNodeIds: nextConnections,
-            objectiveConfig: _buildObjectiveConfig(layerIdx, type, actNumber),
+            objectiveConfig: objConfig,
             pathIndex: i,
           ),
         );
@@ -91,7 +93,7 @@ class MapGenerator {
       connectedNodeIds: ['act_${actNumber}_n8_0', 'act_${actNumber}_n8_1'],
       objectiveConfig: {
         'bossTypeEnum': actMiniBoss.name,
-        'targetScore': actNumber == 1 ? 1600 : 2000,
+        'targetScore': actMiniBoss == BossType.energyThiefMiniBoss ? 3200 : (actNumber == 1 ? 1600 : 2000),
         'moveLimit': 25,
       },
       pathIndex: -1,
@@ -131,13 +133,18 @@ class MapGenerator {
           }
         }
 
+        final Map<String, dynamic> objConfig = _buildObjectiveConfig(layerIdx, type, actNumber);
+        if (type == NodeType.miniBoss) {
+          objConfig['bossTypeEnum'] = getMiniBossForAct(rand, actNumber).name;
+        }
+
         layerNodes.add(
           MapNode(
             id: nodeId,
             layer: layerIdx,
             type: type,
             connectedNodeIds: nextConnections,
-            objectiveConfig: _buildObjectiveConfig(layerIdx, type, actNumber),
+            objectiveConfig: objConfig,
             pathIndex: i,
           ),
         );
@@ -178,16 +185,42 @@ class MapGenerator {
     );
   }
 
+  static BossType getMiniBossForAct(Random rand, int actNumber) {
+    if (actNumber == 1) {
+      final pool = [
+        BossType.mysteryMiniBoss,
+        BossType.voltBomberMiniBoss,
+        BossType.stoneMonsterMiniBoss,
+      ];
+      return pool[rand.nextInt(pool.length)];
+    } else if (actNumber == 2) {
+      final pool = [
+        BossType.energyThiefMiniBoss,
+        BossType.iceSprayerMiniBoss,
+        BossType.decayLordMiniBoss,
+      ];
+      return pool[rand.nextInt(pool.length)];
+    } else {
+      final pool = [
+        BossType.earthquakeMiniBoss,
+        BossType.energyDrainerMiniBoss,
+      ];
+      return pool[rand.nextInt(pool.length)];
+    }
+  }
+
   static NodeType _getRandomNodeTypeForLayer(Random rand, int layer) {
-    // 🛠️ Garanti Dinlenme Yerleri (Atölye / Rest Sites)
-    if (layer == 4 || layer == 6 || layer == 10) {
+    // 🛠️ Azaltılmış Dinlenme Yerleri (Sadece kat 5 ve kat 12)
+    if (layer == 5 || layer == 12) {
       return NodeType.workshop;
     }
     final roll = rand.nextDouble();
-    if (roll < 0.65) {
+    if (roll < 0.75) {
       return NodeType.challenge;
-    } else {
+    } else if (roll < 0.88) {
       return NodeType.luckyRoom;
+    } else {
+      return NodeType.miniBoss;
     }
   }
 

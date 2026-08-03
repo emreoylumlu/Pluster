@@ -11,6 +11,7 @@ class EnergySection extends StatelessWidget {
   final double horizontalPadding;
   final bool isLowEnergy;
   final bool isStageMode;
+  final bool? showStatsPanel;
   final AppLanguage language;
   final AnimationController? dangerPulse;
   final String? energyFloatingText;
@@ -28,6 +29,7 @@ class EnergySection extends StatelessWidget {
     this.horizontalPadding = 0.0,
     this.isLowEnergy = false,
     this.isStageMode = false,
+    this.showStatsPanel,
     this.language = AppLanguage.tr,
     this.dangerPulse,
     this.energyFloatingText,
@@ -252,7 +254,7 @@ class EnergySection extends StatelessWidget {
             ],
           ),
 
-          if (!isStageMode) _buildEndlessStatsPanel(loc),
+          if (showStatsPanel ?? (!isStageMode)) _buildEndlessStatsPanel(loc),
         ],
       ),
     );

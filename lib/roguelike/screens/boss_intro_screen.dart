@@ -6,6 +6,15 @@ enum BossType {
   corruptedTileMiniBoss,
   hydraCoreFinalBoss,
   chronosPulsarFinalBoss,
+  // ── 8 Yeni Mini-Boss ──
+  mysteryMiniBoss,
+  voltBomberMiniBoss,
+  energyThiefMiniBoss,
+  energyDrainerMiniBoss,
+  stoneMonsterMiniBoss,
+  earthquakeMiniBoss,
+  iceSprayerMiniBoss,
+  decayLordMiniBoss,
 }
 
 class BossInfo {
@@ -137,6 +146,174 @@ class BossInfo {
           ],
           tactics: [
             'Yüksek değerli taşların yutulmasını önlemek için sayacı sürekli sıfırla.',
+          ],
+        );
+
+      case BossType.mysteryMiniBoss:
+        return const BossInfo(
+          name: 'BİLİNMEZ BOSSU',
+          title: 'ARA BOSS • SIZINTI',
+          subtitle: 'Taş Değerlerini Gizleyen Siber Sis',
+          icon: '❓',
+          primaryColor: Color(0xFF00E5FF),
+          healthOrTargetScore: 1600,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Görünmez Taş Sisleri',
+              description: 'Savaş boyunca taşların sayısal değerlerini görmeden mantık yürüterek oynamalısınız.',
+              icon: Icons.help_outline_rounded,
+            ),
+          ],
+          tactics: [
+            'Bomba ve Prizma taşlarını stratejik kullanarak alanı temizle.',
+          ],
+        );
+
+      case BossType.voltBomberMiniBoss:
+        return const BossInfo(
+          name: 'VOLTAJ BOMBALAYICI',
+          title: 'ARA BOSS • TEHLİKE',
+          subtitle: 'Geri Sayımlı Volt Bombası Jeneratörü',
+          icon: '💣',
+          primaryColor: Color(0xFFFFAB40),
+          healthOrTargetScore: 1800,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Volt Bombası',
+              description: 'Her 3 turda 3, 2, 1 geri sayımlı bomba bırakır. Patlarsa %15 Enerji harcar, 8 yapılırsa +500 skor ve +15⚡ verir.',
+              icon: Icons.timer_rounded,
+            ),
+          ],
+          tactics: [
+            'Volt bombası patlamadan önce 8 değerli taş seviyesine getirip patlat.',
+          ],
+        );
+
+      case BossType.energyThiefMiniBoss:
+        return const BossInfo(
+          name: 'ENERJİ HIRSIZI',
+          title: 'ARA BOSS • YÜKSEK RİSK',
+          subtitle: 'Enerji Çalan ve Hücre Aşırı Yükleyen Parazit',
+          icon: '👿',
+          primaryColor: Color(0xFFBA68C8),
+          healthOrTargetScore: 2400,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Hırsızlık & Şarj',
+              description: 'Her 2 turda -5⚡ çalar ve rastgele hücreye +2 değer ekler. Hedef Skor 2 katıdır.',
+              icon: Icons.bolt_rounded,
+            ),
+          ],
+          tactics: [
+            'Boss\'un +2 değer eklediği hücreleri 8 patlamasına dönüştürerek avantaja çevir.',
+          ],
+        );
+
+      case BossType.energyDrainerMiniBoss:
+        return const BossInfo(
+          name: 'ENERJİ SÖMÜRÜCÜ',
+          title: 'ARA BOSS • EMİLİM',
+          subtitle: 'Birleşme Enerjisini Emen Vampir Çekirdek',
+          icon: '🩸',
+          primaryColor: Color(0xFFFF4081),
+          healthOrTargetScore: 2000,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Enerji Emilimi',
+              description: 'Birleşmelerden kazanılan enerjinin %25\'ini çalar.',
+              icon: Icons.water_drop_rounded,
+            ),
+          ],
+          tactics: [
+            'Yüksek kombolarla enerji kaybını kompanse et.',
+          ],
+        );
+
+      case BossType.stoneMonsterMiniBoss:
+        return const BossInfo(
+          name: 'TAŞ CANAVARI',
+          title: 'ARA BOSS • TAŞLAŞMA',
+          subtitle: 'Hücreleri Taşlaştıran Sert Çekirdek',
+          icon: '🗿',
+          primaryColor: Color(0xFF8D6E63),
+          healthOrTargetScore: 1800,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Taşlaşma',
+              description: 'Her 5 turda 1 rastgele taş taşlaşır ve kilitlenir.',
+              icon: Icons.lock_rounded,
+            ),
+          ],
+          tactics: [
+            'Kilitlenen hücreleri Bomba veya EMP ile aç.',
+          ],
+        );
+
+      case BossType.earthquakeMiniBoss:
+        return const BossInfo(
+          name: 'DEPREM YARATICI',
+          title: 'ARA BOSS • TEKTONİK',
+          subtitle: 'Tahtayı Sarsan Şok Dalgası',
+          icon: '🌍',
+          primaryColor: Color(0xFF795548),
+          healthOrTargetScore: 2200,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Şok Dalgası',
+              description: 'Her 4 turda tahtayı sallar, tüm hücrelerin değeri 1 azalır.',
+              icon: Icons.waves_rounded,
+            ),
+          ],
+          tactics: [
+            'Taş değerleri düşmeden 8 patlamalarını tamamla.',
+          ],
+        );
+
+      case BossType.iceSprayerMiniBoss:
+        return const BossInfo(
+          name: 'BUZ PÜSKÜRTEN',
+          title: 'ARA BOSS • DONMA',
+          subtitle: 'Satırları Donduran Soğutucu Virüs',
+          icon: '❄️',
+          primaryColor: Color(0xFF40C4FF),
+          healthOrTargetScore: 1900,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Satır Dondurma',
+              description: 'Her 3 turda rastgele bir satırı 1 tur boyunca dondurur.',
+              icon: Icons.ac_unit_rounded,
+            ),
+          ],
+          tactics: [
+            'Donmuş satır dışındaki boş hücreleri kullan.',
+          ],
+        );
+
+      case BossType.decayLordMiniBoss:
+        return const BossInfo(
+          name: 'ÇÜRÜME EFENDİSİ',
+          title: 'ARA BOSS • SALGIN',
+          subtitle: 'Hücreleri Çürüten ve Yayılan Enfeksiyon',
+          icon: '🦠',
+          primaryColor: Color(0xFF76FF03),
+          healthOrTargetScore: 2000,
+          isHpBoss: false,
+          abilities: [
+            BossAbilityInfo(
+              title: 'Çürüme Bulaştırma',
+              description: 'Her 2 turda çürüme bulaştırır, tur başı -1 değer düşürür ve komşu hücreye yayılır.',
+              icon: Icons.bug_report_rounded,
+            ),
+          ],
+          tactics: [
+            'Çürüyen hücreleri patlatarak enfeksiyonu temizle.',
           ],
         );
     }

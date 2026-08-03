@@ -63,6 +63,15 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
   String? _resultMessage;
   bool _isGoodOutcome = true;
 
+  // ── Visual Animation Tracking Fields ──
+  double _initialEnergy = 0.0;
+  double _targetEnergy = 0.0;
+  int _initialCrystals = 0;
+  int _targetCrystals = 0;
+  int _initialScore = 0;
+  int _targetScore = 0;
+  LuckyEventChoice? _selectedChoice;
+
   @override
   void initState() {
     super.initState();
@@ -197,6 +206,12 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     HapticFeedback.heavyImpact();
+
+    final metaBefore = await MetaProgressService.loadMetaProgress();
+    _initialEnergy = widget.runState.energy;
+    _initialCrystals = metaBefore.energyCrystals;
+    _initialScore = widget.runState.score;
+    _selectedChoice = choice;
 
     final rand = Random();
     bool isSuccess = false;
@@ -412,8 +427,14 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
         break;
     }
 
+    final metaAfter = await MetaProgressService.loadMetaProgress();
+
     if (mounted) {
       setState(() {
+        _targetEnergy = widget.runState.energy;
+        _targetCrystals = metaAfter.energyCrystals;
+        _targetScore = widget.runState.score;
+
         _awardedCard = wonCard;
         _resultTitle = title;
         _resultMessage = msg;
@@ -523,83 +544,419 @@ class _LuckyRoomScreenState extends State<LuckyRoomScreen> {
   }
 
   Widget _buildResultOverlay(Color currentGlowColor) {
+    final double energyDelta = _targetEnergy - _initialEnergy;
+    final int crystalsDelta = _targetCrystals - _initialCrystals;
+    final int scoreDelta = _targetScore - _initialScore;
+
     return Center(
-      child: Container(
-        padding: const EdgeInsets.all(22),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0C1428).withValues(alpha: 0.95),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: currentGlowColor, width: 2.0),
-          boxShadow: [
-            BoxShadow(
-              color: currentGlowColor.withValues(alpha: 0.4),
-              blurRadius: 24,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _isGoodOutcome ? Icons.thumb_up_alt_rounded : Icons.error_outline_rounded,
-              color: currentGlowColor,
-              size: 48,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _resultTitle!,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: currentGlowColor,
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _resultMessage!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFFE4E4E4),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.4,
-              ),
-            ),
-            if (_awardedCard != null) ...[
-              const SizedBox(height: 16),
-              StoneTileCardWidget(
-                card: _awardedCard!,
-                isUnlocked: true,
-                isHorizontal: true,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0C1428).withValues(alpha: 0.95),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: currentGlowColor, width: 2.0),
+            boxShadow: [
+              BoxShadow(
+                color: currentGlowColor.withValues(alpha: 0.4),
+                blurRadius: 24,
+                spreadRadius: 2,
               ),
             ],
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  HapticFeedback.selectionClick();
-                  widget.onCompleted();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: currentGlowColor,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 8,
-                ),
-                icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                label: const Text(
-                  'HARİTAYA DÖN VE YOL SEÇ ➔',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _isGoodOutcome ? Icons.thumb_up_alt_rounded : Icons.error_outline_rounded,
+                color: currentGlowColor,
+                size: 48,
+              ),
+              const SizedBox(height: 14),
+              Text(
+                _resultTitle!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: currentGlowColor,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.8,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+              Text(
+                _resultMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFFE4E4E4),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+
+              // ── 1. CANLI ENERJİ BARI DOLUM ANIMASYONU ──
+              if (energyDelta.abs() > 0.5) ...[
+                const SizedBox(height: 16),
+                _buildAnimatedEnergyBar(energyDelta),
+              ],
+
+              // ── 2. TAŞ KARTI KAZANIM ANIMASYONU ──
+              if (_awardedCard != null) ...[
+                const SizedBox(height: 16),
+                _buildAnimatedCardAward(currentGlowColor),
+              ],
+
+              // ── 3. KRİSTAL & SKOR SAYACI ANIMASYONU ──
+              if (crystalsDelta != 0 || scoreDelta != 0) ...[
+                const SizedBox(height: 14),
+                _buildAnimatedCounters(crystalsDelta, scoreDelta),
+              ],
+
+              // ── 4. ÖZEL BUFF ROZET GÖSTERİMİ ──
+              if (_selectedChoice != null &&
+                  (_selectedChoice!.type == EventRiskType.magneticStorm ||
+                      _selectedChoice!.type == EventRiskType.lightningBall ||
+                      _selectedChoice!.type == EventRiskType.dustDevil ||
+                      _selectedChoice!.type == EventRiskType.darkRift)) ...[
+                const SizedBox(height: 14),
+                _buildAnimatedBuffBadge(_selectedChoice!),
+              ],
+
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    widget.onCompleted();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: currentGlowColor,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 8,
+                  ),
+                  icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                  label: const Text(
+                    'HARİTAYA DÖN VE YOL SEÇ ➔',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  // ── Animated Energy Bar Widget ──
+  Widget _buildAnimatedEnergyBar(double energyDelta) {
+    final bool isGain = energyDelta > 0;
+    final Color barColor = isGain ? const Color(0xFF00E676) : const Color(0xFFFF5252);
+    final String deltaText = isGain ? '+${energyDelta.round()}% ⚡' : '${energyDelta.round()}% ⚡';
+
+    final double startPct = (_initialEnergy / 100.0).clamp(0.0, 1.0);
+    final double endPct = (_targetEnergy / 100.0).clamp(0.0, 1.0);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: barColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: barColor.withValues(alpha: 0.4), width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.bolt_rounded, color: barColor, size: 18),
+                  const SizedBox(width: 6),
+                  const Text(
+                    'PULSE ENERJİSİ',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: barColor.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: barColor),
+                ),
+                child: Text(
+                  deltaText,
+                  style: TextStyle(
+                    color: barColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: startPct, end: endPct),
+            duration: const Duration(milliseconds: 950),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              final int displayPct = (value * 100).round();
+              return Column(
+                children: [
+                  Stack(
+                    children: [
+                      Container(
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: Colors.black45,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      FractionallySizedBox(
+                        widthFactor: value.clamp(0.02, 1.0),
+                        child: Container(
+                          height: 14,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            gradient: LinearGradient(
+                              colors: isGain
+                                  ? [const Color(0xFF00BFA5), const Color(0xFF7FFFD4)]
+                                  : [const Color(0xFFFF7043), const Color(0xFFFF1744)],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: barColor.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '%$displayPct Enerji',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Animated Card Showcase ──
+  Widget _buildAnimatedCardAward(Color glowColor) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.3, end: 1.0),
+      duration: const Duration(milliseconds: 750),
+      curve: Curves.elasticOut,
+      builder: (context, scale, child) {
+        return Transform.scale(
+          scale: scale,
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD166).withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFFD166)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.auto_awesome_rounded, size: 12, color: Color(0xFFFFD166)),
+                    SizedBox(width: 4),
+                    Text(
+                      'YENİ TAŞ KARTI KAZANILDI!',
+                      style: TextStyle(
+                        color: Color(0xFFFFD166),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: glowColor.withValues(alpha: 0.35),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: StoneTileCardWidget(
+                  card: _awardedCard!,
+                  isUnlocked: true,
+                  isHorizontal: true,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Animated Crystals & Score Counters ──
+  Widget _buildAnimatedCounters(int crystalsDelta, int scoreDelta) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        if (crystalsDelta != 0)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF00B0FF).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF00B0FF).withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.diamond_rounded, color: Color(0xFF00B0FF), size: 18),
+                  const SizedBox(width: 6),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 800),
+                    builder: (context, progress, child) {
+                      final int currentAdd = (crystalsDelta * progress).round();
+                      return Text(
+                        '${currentAdd >= 0 ? "+$currentAdd" : currentAdd} 💎',
+                        style: const TextStyle(
+                          color: Color(0xFF00B0FF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (crystalsDelta != 0 && scoreDelta != 0) const SizedBox(width: 8),
+        if (scoreDelta != 0)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFD166).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 18),
+                  const SizedBox(width: 6),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0.0, end: 1.0),
+                    duration: const Duration(milliseconds: 800),
+                    builder: (context, progress, child) {
+                      final int currentAdd = (scoreDelta * progress).round();
+                      return Text(
+                        '${currentAdd >= 0 ? "+$currentAdd" : currentAdd} SKOR',
+                        style: const TextStyle(
+                          color: Color(0xFFFFD166),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ── Animated Buff Badge ──
+  Widget _buildAnimatedBuffBadge(LuckyEventChoice choice) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: choice.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: choice.color, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: choice.color.withValues(alpha: 0.25),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: choice.color.withValues(alpha: 0.3),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(choice.icon, color: choice.color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  choice.title,
+                  style: TextStyle(
+                    color: choice.color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Aktif Buff Kazanıldı! Sonraki savaşta etkin olacak.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
