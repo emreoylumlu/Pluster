@@ -25,7 +25,6 @@ void main() {
       map: map,
       currentNodeId: map.layers[0][0].id,
       unlockedCardIdsThisRun: [],
-      activeModifiers: {},
       currentLayer: 0,
       score: 0,
       energy: 100.0,

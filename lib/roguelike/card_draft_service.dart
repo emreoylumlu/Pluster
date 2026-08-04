@@ -47,7 +47,9 @@ class CardDraftService {
           (c) => c.tierLevel == targetTier,
           orElse: () => familyCards.firstWhere((c) => c.tierLevel == 1, orElse: () => familyCards.first),
         );
-        if (allowedTiers.contains(matchingCard.tier) || matchingCard.tier == CardTier.basic) {
+        bool hasUnlock = meta.permanentlyUnlockedCardIds.contains(matchingCard.id);
+
+        if (matchingCard.tier == CardTier.basic || (allowedTiers.contains(matchingCard.tier) && hasUnlock)) {
           eligiblePool.add(matchingCard);
         }
       }

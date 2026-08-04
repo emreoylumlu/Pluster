@@ -47,7 +47,6 @@ void main() {
       map: map,
       currentNodeId: 'start',
       unlockedCardIdsThisRun: [],
-      activeModifiers: {},
       currentLayer: 0,
       score: 0,
       energy: 100,
