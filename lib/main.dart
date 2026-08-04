@@ -3640,6 +3640,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
 
     if (level != null) _checkLevelObjectives();
+    _checkRoguelikeObjectives();
 
     if (widget.mode == GameMode.roguelike) {
       roguelikeTurnCount++;
@@ -4342,6 +4343,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       activeComboTitle = null;
       isProcessingPulse = false;
     });
+
+    _checkRoguelikeObjectives();
   }
 
   // ── Level objective helpers ─────────────────────────────────────────────
@@ -4362,6 +4365,22 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return levelBombsUsed >= obj.target;
       case ObjectiveType.multiplierExplosion:
         return levelMultiplierExplosions >= obj.target;
+    }
+  }
+
+  void _checkRoguelikeObjectives() {
+    if (widget.mode != GameMode.roguelike || isBossStage || isLevelComplete || isLevelFailed) return;
+
+    final targetScore = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
+    if (score >= targetScore) {
+      setState(() {
+        isLevelComplete = true; // Prevents multiple triggers
+      });
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted && widget.onRoguelikeNodeWin != null) {
+          widget.onRoguelikeNodeWin?.call();
+        }
+      });
     }
   }
 
