@@ -12,9 +12,7 @@ import 'main_menu_screen.dart';
 import 'level_select_screen.dart';
 import 'levels.dart';
 import 'localization.dart';
-import 'roguelike_models.dart';
-import 'roguelike_draft_modal.dart';
-import 'roguelike_floor_transition_dialog.dart';
+import 'roguelike_modifier.dart';
 
 import 'roguelike/roguelike_models.dart' as rgl;
 import 'roguelike/map_generator.dart';
@@ -281,7 +279,6 @@ class _PulseGridAppState extends State<PulseGridApp> {
       map: newMap,
       currentNodeId: newMap.layers[0][0].id,
       unlockedCardIdsThisRun: [],
-      activeModifiers: {},
       currentLayer: 0,
       score: 0,
       energy: 100.0,
@@ -754,8 +751,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   bool isEnergyDrainerActive = false;
   bool isEnergyThiefActive = false;
 
-  late RoguelikeRunState roguelikeRunState;
-  bool isShowingDraftModal = false;
+
   int roguelikeTurnCount = 0;
 
   late AnimationController _dangerPulseController;
@@ -774,7 +770,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       duration: const Duration(milliseconds: 240),
     );
 
-    roguelikeRunState = RoguelikeRunState();
+
     _initGame();
   }
 
@@ -804,126 +800,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       widget.onHighScoreUpdated(highScore);
     }
     _checkScoreUnlocks();
-  }
-
-  void _checkRoguelikeDraftTrigger() {
-    if (!mounted) return;
-    if (energy <= 0 || isGameOver || isLevelFailed || isBossStage) return;
-
-    if (widget.mode == GameMode.roguelike && !isShowingDraftModal) {
-      final int targetScore = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
-
-      if (score >= targetScore) {
-        setState(() => isShowingDraftModal = true);
-        if (widget.onRoguelikeNodeWin != null) {
-          widget.onRoguelikeNodeWin?.call();
-        } else {
-          _showFloorTransitionFlow();
-        }
-      }
-    }
-  }
-
-  void _showFloorTransitionFlow() {
-    setState(() => isShowingDraftModal = true);
-    HapticFeedback.heavyImpact();
-    _triggerScreenShake();
-
-    final int currentFloor = roguelikeRunState.currentFloor;
-    final int nextTargetScore = roguelikeRunState.waveTargetScore + (400 + (currentFloor + 1) * 250);
-    final bool isEn = widget.currentLanguage == AppLanguage.en;
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return RoguelikeFloorTransitionDialog(
-          floor: currentFloor,
-          score: score,
-          energy: energy,
-          nextFloorTargetScore: nextTargetScore,
-          isEn: isEn,
-          onProceedToDraft: () {
-            Navigator.of(context).pop();
-            _showDraftModal();
-          },
-        );
-      },
-    );
-  }
-
-  void _showDraftModal() {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return RoguelikeDraftModal(
-          floor: roguelikeRunState.currentFloor,
-          runState: roguelikeRunState,
-          language: widget.currentLanguage,
-          onCardSelected: (card) {
-            Navigator.of(context).pop();
-            setState(() {
-              _applyCardEffects(card);
-              roguelikeRunState.advanceFloor();
-              isShowingDraftModal = false;
-            });
-            _showEnergyFloatingText('✨ KART EKLENDİ: ${card.name}!');
-          },
-        );
-      },
-    );
-  }
-
-  void _applyCardEffects(RoguelikeCard card) {
-    roguelikeRunState.applyCard(card);
-
-    if (card.unlocksCellType != null) {
-      List<_Point> candidates = [];
-      for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-          if (grid[r][c].specialType == CellSpecialType.none && grid[r][c].value > 0) {
-            candidates.add(_Point(r, c));
-          }
-        }
-      }
-      if (candidates.isNotEmpty) {
-        final targetPt = candidates[Random().nextInt(candidates.length)];
-        grid[targetPt.r][targetPt.c].specialType = card.unlocksCellType!;
-      }
-    }
-
-    if (card.unlocksTileType != null) {
-      final freeIndex = spawnSlots.indexWhere((t) => t?.type == TileType.normal || t == null);
-      final int targetIdx = freeIndex != -1 ? freeIndex : 0;
-      final type = card.unlocksTileType!;
-
-      switch (type) {
-        case TileType.bomb:
-          spawnSlots[targetIdx] = TileData(value: 0, type: TileType.bomb);
-          break;
-        case TileType.multiplier:
-          spawnSlots[targetIdx] = TileData(value: 2, type: TileType.multiplier);
-          break;
-        case TileType.prism:
-          spawnSlots[targetIdx] = TileData(value: 0, type: TileType.prism);
-          break;
-        case TileType.magnet:
-          spawnSlots[targetIdx] = TileData(value: 2, type: TileType.magnet);
-          break;
-        case TileType.crystal:
-          spawnSlots[targetIdx] = TileData(value: 2, type: TileType.crystal);
-          break;
-        case TileType.contagion:
-          spawnSlots[targetIdx] = TileData(value: 2, type: TileType.contagion);
-          break;
-        case TileType.equalizer:
-          spawnSlots[targetIdx] = TileData(value: 2, type: TileType.equalizer);
-          break;
-        default:
-          break;
-      }
-    }
   }
 
   void _checkScoreUnlocks() {
@@ -1021,7 +897,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final rNode = widget.roguelikeRunNode;
 
     setState(() {
-      isShowingDraftModal = false;
       roguelikeTurnCount = 0;
       grid = List.generate(4, (_) => List.generate(4, (_) => CellData()));
 
@@ -1203,8 +1078,45 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     List<CellSpecialType> specials;
 
     if (widget.mode == GameMode.roguelike) {
-      specials = roguelikeRunState.unlockedCellTypes.where((type) => type != CellSpecialType.none).toList();
-      final int initialLocked = roguelikeRunState.currentModifier.initialLockedCells;
+      specials = [];
+      final unlockedIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
+      for (var cardId in unlockedIds) {
+        final card = CardPool.byId(cardId);
+        if (card.effectType == rgl.CardEffectType.unlockTileType && card.relatedTileType != null) {
+          switch (card.relatedTileType) {
+            case 'doubleEnergy':
+              specials.add(CellSpecialType.doubleEnergy);
+              break;
+            case 'doubleScore':
+              specials.add(CellSpecialType.doubleScore);
+              break;
+            case 'vortex':
+              specials.add(CellSpecialType.vortex);
+              break;
+            case 'shield':
+              specials.add(CellSpecialType.shield);
+              break;
+            case 'overheat':
+              specials.add(CellSpecialType.overheat);
+              break;
+            case 'crystalVein':
+              specials.add(CellSpecialType.crystalVein);
+              break;
+            case 'emp':
+              specials.add(CellSpecialType.emp);
+              break;
+            case 'diagonal':
+              specials.add(CellSpecialType.diagonal);
+              break;
+            case 'locked':
+              specials.add(CellSpecialType.locked);
+              break;
+          }
+        }
+      }
+
+      final int currentFloor = (widget.roguelikeRunState?.currentLayer ?? 0) + 1;
+      final int initialLocked = RoguelikeModifier.getForFloor(currentFloor).initialLockedCells;
       for (int i = 0; i < initialLocked; i++) {
         specials.add(CellSpecialType.locked);
       }
@@ -2475,7 +2387,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final int target = widget.roguelikeRunNode?.objectiveConfig?['targetScore'] ?? 600;
     final double scoreProgress = (score / (target > 0 ? target : 1)).clamp(0.0, 1.0);
     final int scorePercent = (scoreProgress * 100).toInt();
-    final mod = roguelikeRunState.currentModifier;
+    final mod = RoguelikeModifier.getForFloor(floor);
 
     final List<String> activeCardIds = widget.roguelikeRunState?.unlockedCardIdsThisRun ?? [];
     final List<rgl.CardDefinition> activeCards = activeCardIds.map((id) => CardPool.byId(id)).toList();
@@ -3392,15 +3304,26 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
     if (widget.mode == GameMode.roguelike && widget.roguelikeRunState != null) {
       final rs = widget.roguelikeRunState!;
+
+      // Group cards by family and find highest tier
+      final Map<String, rgl.CardDefinition> activeFamilyCards = {};
       for (var cardId in rs.unlockedCardIdsThisRun) {
         final card = CardPool.byId(cardId);
+        final key = card.familyId.isNotEmpty ? card.familyId : card.id;
+        if (!activeFamilyCards.containsKey(key) || card.tierLevel > activeFamilyCards[key]!.tierLevel) {
+          activeFamilyCards[key] = card;
+        }
+      }
+
+      for (var card in activeFamilyCards.values) {
         if (card.familyId == 'energy_saver' || card.familyId == 'passive_shield') {
           cost *= card.effectValue;
         }
+        if (card.effectType == rgl.CardEffectType.energyCostMultiplier) {
+          cost *= card.effectValue;
+        }
       }
-      if (rs.activeModifiers.containsKey(rgl.CardEffectType.energyCostMultiplier)) {
-        cost *= rs.activeModifiers[rgl.CardEffectType.energyCostMultiplier]!;
-      }
+
       // ⚡ YILDIRIM TOBU: Aktif savaşlarda -%20 enerji maliyeti
       if (rs.energyCostReductionBattlesLeft > 0) {
         cost *= 0.80;
@@ -3738,7 +3661,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         }
       }
 
-      final int interval = roguelikeRunState.currentModifier.stoneCurseInterval;
+      final int currentFloor = (widget.roguelikeRunState?.currentLayer ?? 0) + 1;
+      final int interval = RoguelikeModifier.getForFloor(currentFloor).stoneCurseInterval;
       if (interval > 0 && roguelikeTurnCount % interval == 0) {
         _applyStoneCurse();
       }
@@ -3776,7 +3700,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         setState(() => isGameOver = true);
       }
     } else {
-      _checkRoguelikeDraftTrigger();
     }
   }
 
@@ -4193,11 +4116,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         basePoints *= 2;
       }
 
-      if (currentSpecial == CellSpecialType.corrupted) {
-        basePoints = 0;
-        _showEnergyFloatingText('👾 BOZUK TAŞ: -5⚡');
-      }
-
       // Enerji Kazanımı
       double energyGained = 20.0 * comboCount;
       if (widget.mode == GameMode.endless) {
@@ -4230,8 +4148,12 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       if (currentSpecial == CellSpecialType.doubleEnergy) {
         energyGained *= 2;
       }
+
       if (currentSpecial == CellSpecialType.corrupted) {
-        energyGained = -5.0;
+        final resolution = BossMechanics.resolveCorruptedTile(basePoints, energy);
+        basePoints = resolution.score;
+        energyGained = resolution.energyDelta;
+        _showEnergyFloatingText('👾 BOZUK TAŞ: ${resolution.energyDelta}⚡');
       }
       if (isEnergyDrainerActive) {
         energyGained *= 0.75;

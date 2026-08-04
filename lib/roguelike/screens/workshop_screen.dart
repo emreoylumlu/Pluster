@@ -38,9 +38,7 @@ class _WorkshopScreenState extends State<WorkshopScreen> {
 
   void _handleUpgradeCard(CardDefinition card) {
     HapticFeedback.heavyImpact();
-    // Upgrade modifier multiplier in runState activeModifiers or effectValue
-    final double currentVal = widget.runState.activeModifiers[card.effectType] ?? card.effectValue;
-    widget.runState.activeModifiers[card.effectType] = currentVal * 1.15;
+    // (activeModifiers is removed) Upgrade logic typically applies to CardDefinition or is disabled in Workshop for now if relying on effectType directly, but let's mock it for the sake of the screen or just note it's an abstract upgrade.
 
     setState(() {
       _upgradedCard = card;

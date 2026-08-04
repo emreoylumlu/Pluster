@@ -122,7 +122,6 @@ class RunState {
   RunMap map;
   String currentNodeId;
   List<String> unlockedCardIdsThisRun; // koşu içi kazanılan kartlar
-  Map<CardEffectType, double> activeModifiers; // pasif kartların birleşik etkisi
   int currentLayer;
   int score;
   double energy;
@@ -144,7 +143,6 @@ class RunState {
     required this.map,
     required this.currentNodeId,
     required this.unlockedCardIdsThisRun,
-    required this.activeModifiers,
     required this.currentLayer,
     required this.score,
     required this.energy,
@@ -166,9 +164,6 @@ class RunState {
         'map': map.toJson(),
         'currentNodeId': currentNodeId,
         'unlockedCardIdsThisRun': unlockedCardIdsThisRun,
-        'activeModifiers': {
-          for (final entry in activeModifiers.entries) entry.key.name: entry.value,
-        },
         'currentLayer': currentLayer,
         'score': score,
         'energy': energy,
@@ -186,13 +181,6 @@ class RunState {
       map: map,
       currentNodeId: json['currentNodeId'] as String,
       unlockedCardIdsThisRun: List<String>.from(json['unlockedCardIdsThisRun'] ?? const []),
-      activeModifiers: {
-        for (final entry in (json['activeModifiers'] as Map? ?? {}).entries)
-          CardEffectType.values.firstWhere(
-            (value) => value.name == entry.key,
-            orElse: () => CardEffectType.energyCostMultiplier,
-          ): (entry.value as num).toDouble(),
-      },
       currentLayer: json['currentLayer'] as int? ?? 0,
       score: json['score'] as int? ?? 0,
       energy: (json['energy'] as num?)?.toDouble() ?? 100.0,
