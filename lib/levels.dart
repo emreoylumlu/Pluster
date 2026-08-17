@@ -164,47 +164,47 @@ const List<LevelData> kAllLevels = [
   ),
   LevelData(
     id: 16, chapter: 1,
-    name: 'EMP!',
-    description: 'EMP hücresi tüm satır ve sütunu temizler. Kullan!',
+    name: 'Çift Enerji!',
+    description: 'Çift Enerji hücresi depoya 2 kat enerji verir. Kullan!',
     objectives: [
-      LevelObjective(type: ObjectiveType.empCount, target: 1, label: '1 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2000, label: '2.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Zincir Kombo'),
     ],
     constraints: LevelConstraints(moveLimit: 20),
-    guaranteedCells: [CellSpecialType.emp],
+    guaranteedCells: [CellSpecialType.doubleEnergy],
   ),
   LevelData(
     id: 17, chapter: 1,
     name: 'Deşarj',
-    description: 'İki EMP\'yi aynı oyunda tetikle.',
+    description: 'İki Çift Enerji hücresini aynı oyunda tetikle.',
     objectives: [
-      LevelObjective(type: ObjectiveType.empCount, target: 2, label: '2 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2400, label: '2.400 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
-    guaranteedCells: [CellSpecialType.emp, CellSpecialType.emp],
+    guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleEnergy],
   ),
   LevelData(
     id: 18, chapter: 1,
     name: 'Şebeke Şoku',
-    description: 'EMP ile temizle ve puan topla.',
+    description: 'Enerji koruması ve yüksek puan.',
     objectives: [
-      LevelObjective(type: ObjectiveType.empCount, target: 1, label: '1 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2800, label: '2.800 Puan'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
-    guaranteedCells: [CellSpecialType.emp],
+    guaranteedCells: [CellSpecialType.doubleEnergy],
   ),
   LevelData(
     id: 19, chapter: 1,
     name: 'Tam Baskı',
-    description: 'EMP ve skor aynı anda. Doğru zamanlama şart.',
+    description: 'Çift Enerji ve Çift Skor aynı anda. Doğru zamanlama şart.',
     objectives: [
-      LevelObjective(type: ObjectiveType.empCount, target: 2, label: '2 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 3000, label: '3.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
-    guaranteedCells: [CellSpecialType.emp, CellSpecialType.emp],
+    guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleScore],
   ),
 
   // --- Çarpan Öğrenme (20-24) ---
@@ -277,7 +277,7 @@ const List<LevelData> kAllLevels = [
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
     ],
     isBoss: true,
   ),
@@ -417,15 +417,14 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 36, chapter: 2,
     name: 'Karmaşa',
-    description: 'Her şey devrede. EMP ve 2x Skor birlikte.',
+    description: 'Her şey devrede. Çift Enerji ve 2x Skor birlikte.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4200, label: '4.200 Puan'),
-      LevelObjective(type: ObjectiveType.empCount, target: 2, label: '2 EMP Patlatma'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
     guaranteedCells: [
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
       CellSpecialType.doubleScore,
     ],
   ),
@@ -446,15 +445,13 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 38, chapter: 2,
     name: 'Sinerji',
-    description: 'EMP, kombo ve yüksek skor aynı anda.',
+    description: 'Çift Enerji, kombo ve yüksek skor aynı anda.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4800, label: '4.800 Puan'),
       LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
-      LevelObjective(type: ObjectiveType.empCount, target: 1, label: '1 EMP Patlatma'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
     guaranteedCells: [
-      CellSpecialType.emp,
       CellSpecialType.doubleEnergy,
       CellSpecialType.doubleScore,
     ],
@@ -505,16 +502,15 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 42, chapter: 2,
     name: 'Çift Hedef II',
-    description: 'EMP ve skor aynı anda gerekli.',
+    description: 'Kombo ve skor aynı anda gerekli.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 5800, label: '5.800 Puan'),
-      LevelObjective(type: ObjectiveType.empCount, target: 3, label: '3 EMP Patlatma'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
     ],
     constraints: LevelConstraints(moveLimit: 25, startEnergy: 65),
     guaranteedCells: [
-      CellSpecialType.emp,
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
+      CellSpecialType.doubleScore,
     ],
   ),
   LevelData(
@@ -542,7 +538,7 @@ const List<LevelData> kAllLevels = [
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
     ],
   ),
 
@@ -550,16 +546,14 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 45, chapter: 2,
     name: 'Beyin Fırtınası',
-    description: 'Kombo ve EMP ile skoru büyüt.',
+    description: 'Kombo ve Çarpan ile skoru büyüt.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 6000, label: '6.000 Puan'),
       LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
-      LevelObjective(type: ObjectiveType.empCount, target: 2, label: '2 EMP Patlatma'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
     guaranteedCells: [
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
       CellSpecialType.doubleScore,
     ],
   ),
@@ -578,7 +572,7 @@ const List<LevelData> kAllLevels = [
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
-      CellSpecialType.emp,
+      CellSpecialType.doubleScore,
     ],
   ),
   LevelData(
@@ -588,14 +582,12 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 9000, label: '9.000 Puan'),
       LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
-      LevelObjective(type: ObjectiveType.empCount, target: 3, label: '3 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 3, label: '3 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 40, startEnergy: 65),
     guaranteedCells: [
-      CellSpecialType.emp,
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
+      CellSpecialType.doubleScore,
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
@@ -624,14 +616,12 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 12000, label: '12.000 Puan'),
       LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
-      LevelObjective(type: ObjectiveType.empCount, target: 3, label: '3 EMP Patlatma'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 45, startEnergy: 65),
     guaranteedCells: [
-      CellSpecialType.emp,
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
+      CellSpecialType.doubleScore,
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
@@ -657,8 +647,579 @@ const List<LevelData> kAllLevels = [
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
-      CellSpecialType.emp,
-      CellSpecialType.emp,
+      CellSpecialType.doubleEnergy,
+      CellSpecialType.doubleScore,
+    ],
+    isBoss: true,
+  ),
+
+  // ════════════════════════════════════════════
+  // BÖLÜM 3: HİPER REAKSİYON (Seviye 51–75)
+  // ════════════════════════════════════════════
+
+  LevelData(
+    id: 51, chapter: 3,
+    name: 'Kozmik Basamak',
+    description: 'Bölüm 3 başlıyor. Daha yüksek puanlar ve kombolar!',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 15000, label: '15.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 40),
+    guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleScore],
+  ),
+  LevelData(
+    id: 52, chapter: 3,
+    name: 'Vorteks Dalgası',
+    description: 'Vorteks hücreleriyle komşu taşları yükselt.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 16000, label: '16.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [CellSpecialType.vortex, CellSpecialType.doubleScore],
+  ),
+  LevelData(
+    id: 53, chapter: 3,
+    name: 'Buzul Basınç',
+    description: 'Engelleri aşarken enerjini yüksek tut.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 17000, label: '17.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35, startEnergy: 65),
+    guaranteedCells: [CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked],
+  ),
+  LevelData(
+    id: 54, chapter: 3,
+    name: 'Kalkan Bölgesi',
+    description: 'Pulsar kalkanı ile bedava hamle yap.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 18000, label: '18.000 Puan'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
+    ],
+    constraints: LevelConstraints(moveLimit: 36),
+    guaranteedCells: [CellSpecialType.shield, CellSpecialType.doubleEnergy],
+  ),
+  LevelData(
+    id: 55, chapter: 3,
+    name: 'Ateş Çemberi',
+    description: 'Çarpan taşlarıyla skoru fırlat.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 19000, label: '19.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 3, label: '3 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 56, chapter: 3,
+    name: 'Kuantum Ritim',
+    description: 'Ritim yakala, 5 zincirli komboyu tamamla.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 20000, label: '20.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 57, chapter: 3,
+    name: 'Makaralı Kilitleme',
+    description: '5 engeli patlamalarla kır.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 21000, label: '21.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 5, label: '5 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked],
+  ),
+  LevelData(
+    id: 58, chapter: 3,
+    name: 'Sinerji Patlaması',
+    description: 'Çarpan ve kombolarla hedefe ulaş.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 22000, label: '22.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 4, label: '4 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 59, chapter: 3,
+    name: 'Zirveye Tırmanış',
+    description: 'Hem engelleri kır hem de komboları diz.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 23000, label: '23.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 60, chapter: 3,
+    name: 'Aşırı Şarj Sınavı',
+    description: 'Enerjini yüksek tut ve skoru yakala.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 24000, label: '24.000 Puan'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35, startEnergy: 60),
+  ),
+  LevelData(
+    id: 61, chapter: 3,
+    name: 'Kritik Hamle',
+    description: 'Dar hamle sınırında yüksek skor.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 25000, label: '25.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 30),
+  ),
+  LevelData(
+    id: 62, chapter: 3,
+    name: 'Dar Alan',
+    description: '6 engeli kırıp yolu aç.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 26000, label: '26.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked],
+  ),
+  LevelData(
+    id: 63, chapter: 3,
+    name: 'Bomba Dalgası',
+    description: 'Bombaları etkili pozisyonlarda patlat.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 27000, label: '27.000 Puan'),
+      LevelObjective(type: ObjectiveType.bombUsed, target: 4, label: '4 Bomba Kullan'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceBombAvailable: true,
+  ),
+  LevelData(
+    id: 64, chapter: 3,
+    name: 'Magma Basıncı',
+    description: 'Çarpan taşları ile rekor skor yap.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 28000, label: '28.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 5, label: '5 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 65, chapter: 3,
+    name: 'Siber Zincir',
+    description: '6 zincirli efsanevi komboyu başar.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 29000, label: '29.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 66, chapter: 3,
+    name: 'Alevli Dar Boğaz',
+    description: 'Enerji korumasıyla birlikte kilitleri kır.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 30000, label: '30.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 5, label: '5 Engel Kır'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 67, chapter: 3,
+    name: 'Vorteks Kasırgası',
+    description: 'Hızlı reaksiyonlar ve kombolar.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 31000, label: '31.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 68, chapter: 3,
+    name: 'Aşırı Yük Sınırı',
+    description: '5 çarpan patlaması gerçekleştir.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 32000, label: '32.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 5, label: '5 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 69, chapter: 3,
+    name: 'Kırılma Noktası',
+    description: 'Çoklu görev sınavı.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 33000, label: '33.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 5, label: '5 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 70, chapter: 3,
+    name: 'Büyük Reaksiyon',
+    description: 'Yüksek skor ve temiz enerji yönetimi.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 34000, label: '34.000 Puan'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 71, chapter: 3,
+    name: 'Kozmik Kriz',
+    description: 'Boss öncesi son dayanıklılık sınavı.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 35000, label: '35.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 72, chapter: 3,
+    name: 'Hiper Basamak',
+    description: 'Kombo ustalığını kanıtla.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 36000, label: '36.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 73, chapter: 3,
+    name: 'Son Bariyer',
+    description: 'Kilitleri aç ve çarpanları kullan.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 37000, label: '37.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 5, label: '5 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 40),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 74, chapter: 3,
+    name: 'Magma Kapısı',
+    description: 'Boss kapısına son bir adım.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 38000, label: '38.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
+    ],
+    constraints: LevelConstraints(moveLimit: 40),
+  ),
+
+  // --- BOSS 3 (75) ---
+  LevelData(
+    id: 75, chapter: 3,
+    name: '🌋 BOSS: Magma Efendisi',
+    description: 'Lav fırtınasını dindir! Magma Efendisini alt et!',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 40000, label: '40.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
+    ],
+    constraints: LevelConstraints(moveLimit: 55, startEnergy: 70),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.doubleEnergy,
+      CellSpecialType.doubleScore,
+    ],
+    isBoss: true,
+  ),
+
+  // ════════════════════════════════════════════
+  // BÖLÜM 4: NİHAİ USTALIK (Seviye 76–100)
+  // ════════════════════════════════════════════
+
+  LevelData(
+    id: 76, chapter: 4,
+    name: 'Kuantum Kapısı',
+    description: 'Son bölüm başlıyor! Efsanelerin arenası.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 41000, label: '41.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 40),
+  ),
+  LevelData(
+    id: 77, chapter: 4,
+    name: 'Kristal Odası',
+    description: 'Çarpanlarla skor patlaması yap.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 42000, label: '42.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 5, label: '5 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 78, chapter: 4,
+    name: 'Mutlak Sınır',
+    description: '7 engeli temizle.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 43000, label: '43.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked, CellSpecialType.locked],
+  ),
+  LevelData(
+    id: 79, chapter: 4,
+    name: 'Nihai Akış',
+    description: '7 zincirli kombo zincirini başar.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 44000, label: '44.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 80, chapter: 4,
+    name: 'Aşırı Basınç',
+    description: 'Çarpan taşları ile sınırları zorla.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 45000, label: '45.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 6, label: '6 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 81, chapter: 4,
+    name: 'Sonsuz Sinerji',
+    description: 'Büyük skorlar, büyük kombolar.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 46000, label: '46.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 82, chapter: 4,
+    name: 'Kilitli Ağ',
+    description: '7 engeli yok et.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 47000, label: '47.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 83, chapter: 4,
+    name: 'Kuantum Fırtına',
+    description: 'Çarpan ve komboları harmanla.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 48000, label: '48.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 6, label: '6 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 40),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 84, chapter: 4,
+    name: 'Kriz Odası',
+    description: 'Enerji koruması ve kilit kırma.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 49000, label: '49.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 85, chapter: 4,
+    name: 'Siber Sınav',
+    description: 'Ustalık seviyesi kombolar.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 50000, label: '50.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 86, chapter: 4,
+    name: 'Son Nefes',
+    description: 'Zorlu kilitler ve dar zaman.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 52000, label: '52.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 87, chapter: 4,
+    name: 'Nihai Patlama',
+    description: '8 zincirli devasa kombo!',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 54000, label: '54.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 88, chapter: 4,
+    name: 'Zaman Bükülmesi',
+    description: 'Çarpan taşları ile zamanı bük.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 56000, label: '56.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 7, label: '7 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 89, chapter: 4,
+    name: 'Aşırı Yükleme Zirvesi',
+    description: '8 engeli kır, enerjini koru.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 58000, label: '58.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 90, chapter: 4,
+    name: 'Kuantum Duvarı',
+    description: '8 zincirli kombo rekoru.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 60000, label: '60.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 91, chapter: 4,
+    name: 'Ateş Hattı',
+    description: 'Final öncesi engelleri temizle.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 62000, label: '62.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 92, chapter: 4,
+    name: 'Hiper Ritim',
+    description: 'Kusursuz kombo ritmi.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 64000, label: '64.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 93, chapter: 4,
+    name: 'Kristal Zirvesi',
+    description: 'Çarpanlarla 66.000 puana ulaş.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 66000, label: '66.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 7, label: '7 Çarpan Patlatma'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 94, chapter: 4,
+    name: 'Karanlık Madde',
+    description: 'Çoklu görev ustası.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 68000, label: '68.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+  LevelData(
+    id: 95, chapter: 4,
+    name: 'Şok Dalgası',
+    description: 'Son 5 seviye! Hata yapma şansın yok.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 70000, label: '70.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 96, chapter: 4,
+    name: 'Son Öncesi',
+    description: 'Zirveye 4 adım kaldı.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 72000, label: '72.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 97, chapter: 4,
+    name: 'Kuantum Kıyamet',
+    description: 'Efsanevi skor hedefi.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 74000, label: '74.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+  ),
+  LevelData(
+    id: 98, chapter: 4,
+    name: 'Mutlak Sıfır',
+    description: 'Çarpanlar ve %45 enerji koruması.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 76000, label: '76.000 Puan'),
+      LevelObjective(type: ObjectiveType.multiplierExplosion, target: 8, label: '8 Çarpan Patlatma'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
+    ],
+    constraints: LevelConstraints(moveLimit: 35),
+    forceMultiplierAvailable: true,
+  ),
+  LevelData(
+    id: 99, chapter: 4,
+    name: 'Apex Kapısı',
+    description: 'Nihai final boss sınavından önceki son kapı.',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 78000, label: '78.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+    ],
+    constraints: LevelConstraints(moveLimit: 38),
+  ),
+
+  // --- NİHAİ FİNAL BOSS (100) ---
+  LevelData(
+    id: 100, chapter: 4,
+    name: '👑 NİHAİ BOSS: Kuantum Apex',
+    description: 'Tüm evrenin kaderi bu savaşta! Kuantum Apex Çekirdeğini yok et!',
+    objectives: [
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 85000, label: '85.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
+    ],
+    constraints: LevelConstraints(moveLimit: 60, startEnergy: 80),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.doubleEnergy,
       CellSpecialType.doubleScore,
     ],
     isBoss: true,

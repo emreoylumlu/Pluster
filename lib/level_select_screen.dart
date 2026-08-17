@@ -189,12 +189,12 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
   Widget _buildChapterTabs() {
     return Expanded(
       child: DefaultTabController(
-        length: 2,
+        length: 4,
         child: Column(
           children: [
             const SizedBox(height: 20),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Container(
                 height: 44,
                 decoration: BoxDecoration(
@@ -203,6 +203,8 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                   border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                 ),
                 child: TabBar(
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
                   indicator: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [Color(0xFF00BFA5), Color(0xFF0076FF)],
@@ -214,12 +216,14 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                   unselectedLabelColor: Colors.white38,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.w800,
-                    fontSize: 13,
+                    fontSize: 12,
                     letterSpacing: 0.5,
                   ),
                   tabs: [
                     _buildTabLabel('Bölüm 1', 'Akademi', 1),
-                    _buildTabLabel('Bölüm 2', 'Enerji Krizi', 2),
+                    _buildTabLabel('Bölüm 2', 'Uzman', 2),
+                    _buildTabLabel('Bölüm 3', 'Hiper', 3),
+                    _buildTabLabel('Bölüm 4', 'Nihai', 4),
                   ],
                 ),
               ),
@@ -230,6 +234,8 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                 children: [
                   _buildChapterGrid(chapter: 1),
                   _buildChapterGrid(chapter: 2),
+                  _buildChapterGrid(chapter: 3),
+                  _buildChapterGrid(chapter: 4),
                 ],
               ),
             ),

@@ -943,9 +943,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     CellData cell = grid[r][c];
     String info = '';
 
-    if (cell.specialType == CellSpecialType.emp) {
-      info = '🧲 EMP HÜCRESİ: Patladığında tüm satır ve sütunu anında temizler!';
-    } else if (cell.specialType == CellSpecialType.diagonal) {
+    if (cell.specialType == CellSpecialType.diagonal) {
       info = '⭐ ÇAPRAZ PATLAMA: Patladığında dalga sadece çapraz komşulara yayılır!';
     } else if (cell.specialType == CellSpecialType.doubleEnergy) {
       info = '⚡ 2x ENERJİ: Patladığında 2 kat daha fazla şebeke enerjisi kazandırır!';
@@ -1217,7 +1215,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         CellSpecialType.doubleEnergy,
         CellSpecialType.doubleScore,
       ];
-      if (score >= 300) specials.add(CellSpecialType.emp);
       if (score >= 600) specials.add(CellSpecialType.diagonal);
       if (score >= 1000) specials.add(CellSpecialType.locked);
     }
@@ -1875,8 +1872,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return obj.target > 0 ? score / obj.target : 1.0;
       case ObjectiveType.comboCount:
         return obj.target > 0 ? levelComboChains / obj.target : 1.0;
-      case ObjectiveType.empCount:
-        return obj.target > 0 ? levelEmpFired / obj.target : 1.0;
       case ObjectiveType.clearLocked:
         return obj.target > 0 ? levelLockedCleared / obj.target : 1.0;
       case ObjectiveType.energyRemaining:
@@ -1894,8 +1889,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return Icons.track_changes_rounded;
       case ObjectiveType.comboCount:
         return Icons.link_rounded;
-      case ObjectiveType.empCount:
-        return Icons.bolt_rounded;
       case ObjectiveType.clearLocked:
         return Icons.lock_open_rounded;
       case ObjectiveType.energyRemaining:
@@ -1913,8 +1906,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return '$score / ${obj.target}';
       case ObjectiveType.comboCount:
         return '$levelComboChains / ${obj.target}';
-      case ObjectiveType.empCount:
-        return '$levelEmpFired / ${obj.target}';
       case ObjectiveType.clearLocked:
         return '$levelLockedCleared / ${obj.target}';
       case ObjectiveType.energyRemaining:
@@ -3102,7 +3093,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   IconData? _badgeIconForCell(CellData cell) {
-    if (cell.specialType == CellSpecialType.emp) return Icons.bolt_rounded;
     if (cell.specialType == CellSpecialType.diagonal) return Icons.star_border;
     if (cell.specialType == CellSpecialType.doubleEnergy) return Icons.eco;
     if (cell.specialType == CellSpecialType.doubleScore) return Icons.auto_awesome;
@@ -3118,7 +3108,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   }
 
   Color? _badgeColorForCell(CellData cell) {
-    if (cell.specialType == CellSpecialType.emp) return const Color(0xFFB388FF);
     if (cell.specialType == CellSpecialType.diagonal) return const Color(0xFF18FFFF);
     if (cell.specialType == CellSpecialType.doubleEnergy) return const Color(0xFF00E676);
     if (cell.specialType == CellSpecialType.doubleScore) return const Color(0xFFFFD54F);
@@ -3974,119 +3963,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     return candidates[Random().nextInt(candidates.length)];
   }
 
-  void _applyVoltBomberAttack() {
-    if (voltBombPoint == null || grid[voltBombPoint!.r][voltBombPoint!.c].specialType != CellSpecialType.voltBomb) {
-      List<_Point> emptyCells = [];
-      for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-          if (grid[r][c].value == 0 && grid[r][c].specialType == CellSpecialType.none) {
-            emptyCells.add(_Point(r, c));
-          }
-        }
-      }
-      if (emptyCells.isNotEmpty) {
-        final pt = emptyCells[Random().nextInt(emptyCells.length)];
-        setState(() {
-          grid[pt.r][pt.c].specialType = CellSpecialType.voltBomb;
-          grid[pt.r][pt.c].value = 2;
-          voltBombPoint = pt;
-          voltBombCountdown = 3;
-        });
-        _showEnergyFloatingText('💣 VOLT BOMBASI BİRİKTİ (3 Tur)');
-      }
-    } else {
-      setState(() {
-        voltBombCountdown--;
-      });
-      if (voltBombCountdown <= 0) {
-        setState(() {
-          energy = (energy - 15.0).clamp(0.0, 100.0);
-          if (voltBombPoint != null) {
-            grid[voltBombPoint!.r][voltBombPoint!.c].specialType = CellSpecialType.none;
-            grid[voltBombPoint!.r][voltBombPoint!.c].value = 0;
-            voltBombPoint = null;
-          }
-        });
-        _showEnergyFloatingText('💥 VOLT BOMBASI PATLADI! -15⚡');
-        _triggerEnergyPulse(false);
-      }
-    }
-  }
 
-  void _applyEnergyThiefAttack() {
-    setState(() {
-      energy = (energy - 5.0).clamp(0.0, 100.0);
-    });
-    List<_Point> validCells = [];
-    for (int r = 0; r < 4; r++) {
-      for (int c = 0; c < 4; c++) {
-        if (grid[r][c].value > 0 && grid[r][c].value < 8 && grid[r][c].specialType != CellSpecialType.locked && grid[r][c].specialType != CellSpecialType.bossCore) {
-          validCells.add(_Point(r, c));
-        }
-      }
-    }
-    if (validCells.isNotEmpty) {
-      final pt = validCells[Random().nextInt(validCells.length)];
-      setState(() {
-        grid[pt.r][pt.c].value = (grid[pt.r][pt.c].value + 2).clamp(1, 8);
-      });
-      if (grid[pt.r][pt.c].value >= 8) {
-        _processPulseQueue(pt.r, pt.c);
-        _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡ & TAŞ HÜCRESİ PATLATILDI!');
-      } else {
-        _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡ & HÜCREYE +2 VE ŞARJ!');
-      }
-    } else {
-      _showEnergyFloatingText('👿 ENERJİ HIRSIZI: -5⚡');
-    }
-  }
-
-  void _applyEarthquakeAttack() {
-    _triggerScreenShake();
-    setState(() {
-      for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-          if (grid[r][c].value > 1 && grid[r][c].specialType != CellSpecialType.locked && grid[r][c].specialType != CellSpecialType.bossCore) {
-            grid[r][c].value = max(1, grid[r][c].value - 1);
-          }
-        }
-      }
-    });
-    _showEnergyFloatingText('🌍 DEPREM! TÜM TAŞLAR DEĞER KAYBETTİ (-1)');
-  }
-
-  void _applyIceSprayerAttack() {
-    setState(() {
-      frozenRowIndex = Random().nextInt(4);
-      frozenTurnsLeft = 1;
-    });
-    _showEnergyFloatingText('❄️ BUZ PÜSKÜRTEN: SATIR ${frozenRowIndex! + 1} DONDU!');
-  }
-
-  void _applyDecayLordAttack() {
-    List<_Point> cleanCells = [];
-    for (int r = 0; r < 4; r++) {
-      for (int c = 0; c < 4; c++) {
-        if (grid[r][c].specialType == CellSpecialType.none && grid[r][c].value > 0) {
-          cleanCells.add(_Point(r, c));
-        }
-      }
-    }
-    setState(() {
-      if (cleanCells.isNotEmpty) {
-        final pt = cleanCells[Random().nextInt(cleanCells.length)];
-        grid[pt.r][pt.c].specialType = CellSpecialType.decay;
-      }
-      for (int r = 0; r < 4; r++) {
-        for (int c = 0; c < 4; c++) {
-          if (grid[r][c].specialType == CellSpecialType.decay) {
-            grid[r][c].value = max(1, grid[r][c].value - 1);
-          }
-        }
-      }
-    });
-    _showEnergyFloatingText('🦠 ÇÜRÜME EFENDİSİ: SALGIN YAYILDI!');
-  }
 
   void _applyStoneCurse() {
     List<_Point> emptyPoints = [];
@@ -4154,22 +4031,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       CellSpecialType currentSpecial = grid[r][c].specialType;
       bool wasMultiplier = grid[r][c].isMultiplier;
-
-      // EMP Özelliği
-      if (currentSpecial == CellSpecialType.emp) {
-        setState(() {
-          activeComboTitle = '🧲 EMP ŞOK DALGASI!';
-        });
-        HapticFeedback.vibrate();
-        if (widget.level != null) levelEmpFired++;
-
-        for (int i = 0; i < 4; i++) {
-          grid[r][i].value = 0;
-          grid[r][i].specialType = CellSpecialType.none;
-          grid[i][c].value = 0;
-          grid[i][c].specialType = CellSpecialType.none;
-        }
-      }
 
       // Vorteks Özelliği
       if (currentSpecial == CellSpecialType.vortex) {
@@ -4252,7 +4113,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         String tag = '';
         if (currentSpecial == CellSpecialType.doubleScore) tag += ' (2x Skor)';
         if (currentSpecial == CellSpecialType.doubleEnergy) tag += ' (⚡2x)';
-        if (currentSpecial == CellSpecialType.emp) tag += ' (EMP)';
 
         grid[r][c].floatingText = '+$basePoints$tag';
         energy = (energy + energyGained).clamp(0.0, 100.0);
@@ -4262,7 +4122,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       _showEnergyFloatingText('+${energyGained.toInt()}⚡');
       _triggerEnergyPulse(true);
 
-      if (comboCount >= 2 && currentSpecial != CellSpecialType.emp) {
+      if (comboCount >= 2) {
         hadChainCombo = true;
         HapticFeedback.vibrate();
         setState(() {
@@ -4329,11 +4189,11 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         if (shouldDamage) {
           final bool isWeakSpotHit = currentSpecial == CellSpecialType.bossWeakSpot ||
               (weakSpotPoint != null && weakSpotPoint!.r == r && weakSpotPoint!.c == c);
-          final bool isCritical = wasMultiplier || currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal;
+          final bool isCritical = wasMultiplier || currentSpecial == CellSpecialType.diagonal;
           final int damage = BossMechanics.calculateBossDamage(
             isWeakSpot: isWeakSpotHit,
             wasMultiplier: wasMultiplier,
-            isEmpOrDiagonal: currentSpecial == CellSpecialType.emp || currentSpecial == CellSpecialType.diagonal,
+            isEmpOrDiagonal: currentSpecial == CellSpecialType.diagonal,
             comboCount: comboCount,
           );
 
@@ -4430,8 +4290,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return score >= obj.target;
       case ObjectiveType.comboCount:
         return levelComboChains >= obj.target;
-      case ObjectiveType.empCount:
-        return levelEmpFired >= obj.target;
       case ObjectiveType.clearLocked:
         return levelLockedCleared >= obj.target;
       case ObjectiveType.energyRemaining:
@@ -4714,8 +4572,6 @@ class PulseGridCell extends StatelessWidget {
       cellColor = Colors.cyanAccent;
     } else if (cell.isMultiplier) {
       cellColor = Colors.amber.shade900.withValues(alpha: 0.6);
-    } else if (cell.specialType == CellSpecialType.emp) {
-      cellColor = Colors.purple.shade900.withValues(alpha: 0.8);
     } else if (cell.specialType == CellSpecialType.diagonal) {
       cellColor = Colors.deepOrange.shade900.withValues(alpha: 0.7);
     } else if (cell.specialType == CellSpecialType.doubleEnergy) {
@@ -4733,8 +4589,6 @@ class PulseGridCell extends StatelessWidget {
     Widget? cellIcon;
     if (isLocked) {
       cellIcon = Icon(Icons.lock_rounded, color: Colors.redAccent, size: 28 * s);
-    } else if (cell.specialType == CellSpecialType.emp) {
-      cellIcon = Positioned(top: 4 * s, left: 4 * s, child: Icon(Icons.edgesensor_high_rounded, color: Colors.purpleAccent, size: 16 * s));
     } else if (cell.specialType == CellSpecialType.diagonal) {
       cellIcon = Positioned(top: 4 * s, left: 4 * s, child: Icon(Icons.close_rounded, color: Colors.orangeAccent, size: 16 * s));
     } else if (cell.specialType == CellSpecialType.doubleEnergy) {
