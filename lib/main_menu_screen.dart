@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'game_models.dart';
 import 'top_bar.dart';
 import 'localization.dart';
+import 'screens/leaderboard_screen.dart';
+import 'services/leaderboard_service.dart';
 
 class MainMenuScreen extends StatefulWidget {
   final int highScore;
@@ -43,6 +45,21 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
       vsync: this,
       duration: const Duration(seconds: 12),
     )..repeat();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkFirstLaunchNickname();
+    });
+  }
+
+  void _checkFirstLaunchNickname() async {
+    final hasSet = await LeaderboardService.instance.hasSetNickname();
+    if (!hasSet && mounted) {
+      LeaderboardScreen.showNicknameDialog(
+        context: context,
+        currentNickname: '',
+        isEn: widget.currentLanguage == AppLanguage.en,
+      );
+    }
   }
 
   @override
@@ -98,87 +115,94 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
 
           // Main Layout Content
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                children: [
-                  // Top Header Bar (High Score Badge & Language & Help)
-                  _buildHeaderBar(),
-
-                  const Spacer(flex: 1),
-
-                  // Game Title Logo Banner
-                  _buildTitleBanner(),
-
-                  const Spacer(flex: 2),
-
-                  // Mode Selection Cards
-                  Expanded(
-                    flex: 10,
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      child: Container(
-                        constraints: const BoxConstraints(maxWidth: 480),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                         child: Column(
                           children: [
-                            _buildModeCard(
-                              context: context,
-                              mode: GameMode.endless,
-                              title: loc.text('sonsuz_mod'),
-                              subtitle: loc.text('sonsuz_mod_sub'),
-                              badgeText: '${loc.text("rekor")}: ${widget.highScore}',
-                              badgeColor: const Color(0xFFFFD166),
-                              accentColor: const Color(0xFF00E676),
-                              icon: Icons.all_inclusive_rounded,
-                              onTap: () {
-                                HapticFeedback.heavyImpact();
-                                widget.onSelectMode(GameMode.endless);
-                              },
+                            // Top Header Bar (High Score Badge & Language & Help)
+                            _buildHeaderBar(),
+
+                            const SizedBox(height: 16),
+
+                            // Game Title Logo Banner
+                            _buildTitleBanner(),
+
+                            const SizedBox(height: 20),
+
+                            // Mode Selection Cards
+                            Container(
+                              constraints: const BoxConstraints(maxWidth: 480),
+                              child: Column(
+                                children: [
+                                  _buildModeCard(
+                                    context: context,
+                                    mode: GameMode.endless,
+                                    title: loc.text('sonsuz_mod'),
+                                    subtitle: loc.text('sonsuz_mod_sub'),
+                                    badgeText: '${loc.text("rekor")}: ${widget.highScore}',
+                                    badgeColor: const Color(0xFFFFD166),
+                                    accentColor: const Color(0xFF00E676),
+                                    icon: Icons.all_inclusive_rounded,
+                                    onTap: () {
+                                      HapticFeedback.heavyImpact();
+                                      widget.onSelectMode(GameMode.endless);
+                                    },
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _buildModeCard(
+                                    context: context,
+                                    mode: GameMode.stage,
+                                    title: loc.text('seviye_modu'),
+                                    subtitle: loc.text('seviye_modu_sub'),
+                                    badgeText: loc.text('seviyeler'),
+                                    badgeColor: const Color(0xFFB388FF),
+                                    accentColor: const Color(0xFF7C4DFF),
+                                    icon: Icons.auto_awesome_motion_rounded,
+                                    isComingSoon: false,
+                                    onTap: () {
+                                      HapticFeedback.heavyImpact();
+                                      widget.onSelectMode(GameMode.stage);
+                                    },
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _buildModeCard(
+                                    context: context,
+                                    mode: GameMode.roguelike,
+                                    title: loc.text('tirmanis_modu'),
+                                    subtitle: loc.text('tirmanis_modu_sub'),
+                                    badgeText: widget.currentLanguage == AppLanguage.en ? 'ROGUELIKE 🎲' : 'TIRMANIŞ 🎲',
+                                    badgeColor: const Color(0xFFFF4081),
+                                    accentColor: const Color(0xFFFFD166),
+                                    icon: Icons.style_rounded,
+                                    isComingSoon: false,
+                                    onTap: () {
+                                      HapticFeedback.heavyImpact();
+                                      widget.onSelectMode(GameMode.roguelike);
+                                    },
+                                  ),
+                                ],
+                              ),
                             ),
-                             const SizedBox(height: 16),
-                             _buildModeCard(
-                               context: context,
-                               mode: GameMode.stage,
-                               title: loc.text('seviye_modu'),
-                               subtitle: loc.text('seviye_modu_sub'),
-                               badgeText: loc.text('seviyeler'),
-                               badgeColor: const Color(0xFFB388FF),
-                               accentColor: const Color(0xFF7C4DFF),
-                               icon: Icons.auto_awesome_motion_rounded,
-                               isComingSoon: false,
-                               onTap: () {
-                                 HapticFeedback.heavyImpact();
-                                 widget.onSelectMode(GameMode.stage);
-                               },
-                             ),
-                             const SizedBox(height: 16),
-                             _buildModeCard(
-                               context: context,
-                               mode: GameMode.roguelike,
-                               title: loc.text('tirmanis_modu'),
-                               subtitle: loc.text('tirmanis_modu_sub'),
-                               badgeText: widget.currentLanguage == AppLanguage.en ? 'ROGUELIKE 🎲' : 'TIRMANIŞ 🎲',
-                               badgeColor: const Color(0xFFFF4081),
-                               accentColor: const Color(0xFFFFD166),
-                               icon: Icons.style_rounded,
-                               isComingSoon: false,
-                               onTap: () {
-                                 HapticFeedback.heavyImpact();
-                                 widget.onSelectMode(GameMode.roguelike);
-                               },
-                             ),
+
+                            const Spacer(),
+                            const SizedBox(height: 16),
+
+                            // Footer Info
+                            _buildFooterControls(),
                           ],
                         ),
                       ),
                     ),
                   ),
-
-                  const Spacer(flex: 1),
-
-                  // Footer Info
-                  _buildFooterControls(),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -260,6 +284,29 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                     ),
                   ],
                 ),
+              ),
+            ),
+            IconButton(
+              tooltip: widget.currentLanguage == AppLanguage.en ? 'Global Leaderboard' : 'Liderlik Tablosu',
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (ctx) => LeaderboardScreen(
+                      onClose: () => Navigator.of(ctx).pop(),
+                      isEn: widget.currentLanguage == AppLanguage.en,
+                    ),
+                  ),
+                );
+              },
+              icon: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFFFD166).withValues(alpha: 0.15),
+                  border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.4), width: 1.2),
+                ),
+                child: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 20),
               ),
             ),
             const SizedBox(width: 6),

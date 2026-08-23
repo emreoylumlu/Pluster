@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Sonsuz Mod Liderlik Tablosu (Herkes okuyabilir, oturum açmış kullanıcı yazabilir)
+    match /leaderboard_endless/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Haftalık Sonsuz Mod Liderlik Tablosu (Herkes okuyabilir, oturum açmış kullanıcı yazabilir)
+    match /leaderboard_endless_weekly/{weekId}/scores/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // Tekrar Skor Gönderimini Engelleme Seansları
+    match /game_sessions/{sessionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Yasaklı Kelimeler Moderasyon Sözlüğü
+    match /banned_words/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

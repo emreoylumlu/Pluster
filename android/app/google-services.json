@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "124212548321",
+    "project_id": "pluster-30fb9",
+    "storage_bucket": "pluster-30fb9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:124212548321:android:c764a1eccf5e6572b91da0",
+        "android_client_info": {
+          "package_name": "com.emreoylumlu.pluster"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAluCzvA7EJqDjNtmtrCHQQN-lkxdibnFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

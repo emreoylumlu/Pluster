@@ -15,6 +15,9 @@ import 'localization.dart';
 import 'roguelike_models.dart';
 import 'roguelike_draft_modal.dart';
 import 'roguelike_floor_transition_dialog.dart';
+import 'services/leaderboard_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'roguelike/roguelike_models.dart' as rgl;
 import 'roguelike/map_generator.dart';
@@ -39,6 +42,13 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase initialization warning: $e');
+  }
   runApp(const PulseGridApp());
 }
 
@@ -1950,6 +1960,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
               _buildLevelCompleteOverlay(),
             if (isLevelFailed)
               _buildLevelFailedOverlay(),
+            if (isGameOver)
+              _buildEndlessGameOverOverlay(),
           ],
         ),
       ),
@@ -2964,140 +2976,408 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   Widget _buildLevelCompleteOverlay() {
     final level = widget.level!;
+    final bool isEn = widget.currentLanguage == AppLanguage.en;
+    final moveLimit = level.constraints?.moveLimit;
+
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.80),
+        color: Colors.black.withValues(alpha: 0.88),
         child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A1E30),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: const Color(0xFF00BFA5), width: 2),
-              boxShadow: [
-                BoxShadow(
-                    color: const Color(0xFF00BFA5).withValues(alpha: 0.4),
-                    blurRadius: 40,
-                    spreadRadius: 4),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('✅', style: TextStyle(fontSize: 40)),
-                const SizedBox(height: 10),
-                const Text(
-                  'SEVİYE TAMAMLANDI!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.5,
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F1B35).withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: const Color(0xFF7FFFD4).withValues(alpha: 0.5), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7FFFD4).withValues(alpha: 0.25),
+                    blurRadius: 35,
+                    spreadRadius: 3,
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  level.displayTitle,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Trophy Icon with Glow Aura
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFFD166).withValues(alpha: 0.15),
+                      border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.5), width: 1.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFFD166).withValues(alpha: 0.3),
+                          blurRadius: 20,
+                          spreadRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 44),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Stars
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(3, (i) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0.0, end: 1.0),
-                        duration: Duration(milliseconds: 300 + i * 150),
-                        curve: Curves.elasticOut,
-                        builder: (context, scale, _) => Transform.scale(
-                          scale: scale,
-                          child: Icon(
-                            i < _levelCompletedStars
-                                ? Icons.star_rounded
-                                : Icons.star_outline_rounded,
-                            size: 40,
-                            color: i < _levelCompletedStars
-                                ? const Color(0xFFFFD166)
-                                : Colors.white24,
+                  const SizedBox(height: 14),
+
+                  Text(
+                    isEn ? 'LEVEL COMPLETED!' : 'SEVİYE TAMAMLANDI!',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'BÖLÜM ${level.chapter} • SEVİYE ${level.id}: ${level.name ?? ''}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Color(0xFF7FFFD4),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 3D Sequential Star Pop-in Animation
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (i) {
+                      final bool isEarned = i < _levelCompletedStars;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: Duration(milliseconds: 350 + i * 220),
+                          curve: Curves.elasticOut,
+                          builder: (context, scale, _) => Transform.scale(
+                            scale: scale,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: isEarned
+                                    ? const Color(0xFFFFD166).withValues(alpha: 0.15)
+                                    : Colors.white.withValues(alpha: 0.05),
+                              ),
+                              child: Icon(
+                                isEarned ? Icons.star_rounded : Icons.star_outline_rounded,
+                                size: 38,
+                                color: isEarned ? const Color(0xFFFFD166) : Colors.white24,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Text('SKOR', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 11, fontWeight: FontWeight.w700)),
-                    const Spacer(),
-                    Text('$score', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                if (level.id < 50) ...[
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      final nextLevel = kAllLevels.firstWhere(
-                        (l) => l.id == level.id + 1,
-                        orElse: () => level,
                       );
-                      if (widget.onNextLevel != null) {
-                        widget.onNextLevel!(nextLevel);
-                      } else {
-                        widget.onBackToLevelSelect?.call();
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00BFA5),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 8,
+                    }),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Stats Breakdown Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1),
                     ),
-                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                    label: Text(
-                      widget.currentLanguage == AppLanguage.en ? 'NEXT LEVEL ▶' : 'SONRAKİ SEVİYE ▶',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              isEn ? 'TOTAL SCORE' : 'TOPLAM SKOR',
+                              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                            Text(
+                              '$score',
+                              style: const TextStyle(color: Color(0xFFFFD166), fontSize: 20, fontWeight: FontWeight.w900),
+                            ),
+                          ],
+                        ),
+                        const Divider(color: Colors.white12, height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.link_rounded, color: Color(0xFF7FFFD4), size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  isEn ? 'MAX COMBO' : 'EN YÜKSEK ZİNCİR',
+                                  style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              'x${maxCombo > 0 ? maxCombo : 1}',
+                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                            ),
+                          ],
+                        ),
+                        if (moveLimit != null) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.timer_rounded, color: Color(0xFFFF5252), size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isEn ? 'MOVES USED' : 'KULLANILAN HAMLE',
+                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                              Text(
+                                '$levelMoveCount / $moveLimit',
+                                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+
+                  const SizedBox(height: 20),
+
+                  // Action Buttons
+                  if (level.id < 100) ...[
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        final nextLevel = kAllLevels.firstWhere(
+                          (l) => l.id == level.id + 1,
+                          orElse: () => level,
+                        );
+                        LevelSelectScreen.showLevelStartDialog(
+                          context: context,
+                          level: nextLevel,
+                          earnedStars: 0,
+                          onStart: () {
+                            if (widget.onNextLevel != null) {
+                              widget.onNextLevel!(nextLevel);
+                            } else {
+                              widget.onBackToLevelSelect?.call();
+                            }
+                          },
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7FFFD4),
+                        foregroundColor: const Color(0xFF0F1B35),
+                        minimumSize: const Size(double.infinity, 48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 10,
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                      label: Text(
+                        isEn ? 'NEXT LEVEL ▶' : 'SONRAKİ SEVİYE ▶',
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    OutlinedButton.icon(
+                      onPressed: () => widget.onBackToLevelSelect?.call(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white70,
+                        side: const BorderSide(color: Colors.white24),
+                        minimumSize: const Size(double.infinity, 42),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      icon: const Icon(Icons.grid_view_rounded, size: 18),
+                      label: Text(
+                        isEn ? 'LEVEL SELECT' : 'SEVİYE SEÇİMİ',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   OutlinedButton.icon(
-                    onPressed: () => widget.onBackToLevelSelect?.call(),
+                    onPressed: widget.onBackToMenu,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.white70,
                       side: const BorderSide(color: Colors.white24),
                       minimumSize: const Size(double.infinity, 42),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    icon: const Icon(Icons.grid_view_rounded, size: 18),
+                    icon: const Icon(Icons.home_rounded, size: 18, color: Color(0xFF7FFFD4)),
                     label: Text(
-                      widget.currentLanguage == AppLanguage.en ? 'LEVEL SELECT' : 'SEVİYE SEÇİMİ',
+                      isEn ? 'BACK TO MAIN MENU' : 'ANA MENÜYE DÖN',
                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: widget.onBackToMenu,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white70,
-                    side: const BorderSide(color: Colors.white24),
-                    minimumSize: const Size(double.infinity, 42),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  int? endlessGlobalRank;
+  bool isSubmittingEndlessScore = false;
+
+  void _submitEndlessScoreInBackground() async {
+    if (isSubmittingEndlessScore) return;
+    isSubmittingEndlessScore = true;
+
+    try {
+      final moves = levelMoveCount > 0 ? levelMoveCount : 1;
+      final res = await LeaderboardService.instance.submitScore(score, moves);
+      if (mounted && res['success'] == true) {
+        setState(() {
+          if (res['isNewHighScore'] == true && res['globalRank'] != null) {
+            endlessGlobalRank = res['globalRank'] as int?;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  Widget _buildEndlessGameOverOverlay() {
+    final bool isEn = widget.currentLanguage == AppLanguage.en;
+
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black.withValues(alpha: 0.88),
+        child: Center(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              constraints: const BoxConstraints(maxWidth: 380),
+              padding: const EdgeInsets.all(26),
+              decoration: BoxDecoration(
+                color: const Color(0xFF140A18),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.7), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF5252).withValues(alpha: 0.3),
+                    blurRadius: 35,
+                    spreadRadius: 3,
                   ),
-                  icon: const Icon(Icons.home_rounded, size: 18, color: Color(0xFF00E676)),
-                  label: const Text('ANA MENÜYE DÖN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
-              ],
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.flash_off_rounded, color: Color(0xFFFF5252), size: 48),
+                  const SizedBox(height: 12),
+                  Text(
+                    isEn ? 'GAME OVER' : 'OYUN BİTTİ',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isEn ? 'Energy Depleted!' : 'Enerjin Tükenmiştir!',
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+
+                  if (endlessGlobalRank != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFD166).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFFD166), width: 1.2),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 22),
+                          const SizedBox(width: 8),
+                          Text(
+                            isEn ? 'NEW RECORD! Global Rank: #$endlessGlobalRank' : '🏆 YENİ REKOR! Global Sıralama: #$endlessGlobalRank',
+                            style: const TextStyle(color: Color(0xFFFFD166), fontWeight: FontWeight.w900, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEn ? 'TOTAL SCORE' : 'TOPLAM SKOR',
+                          style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          '$score',
+                          style: const TextStyle(color: Color(0xFFFFD166), fontSize: 22, fontWeight: FontWeight.w900),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        endlessGlobalRank = null;
+                        isSubmittingEndlessScore = false;
+                      });
+                      _initGame();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7FFFD4),
+                      foregroundColor: const Color(0xFF070D1D),
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 8,
+                    ),
+                    icon: const Icon(Icons.replay_rounded, size: 22),
+                    label: Text(
+                      isEn ? 'PLAY AGAIN' : 'TEKRAR OYNA',
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        endlessGlobalRank = null;
+                        isSubmittingEndlessScore = false;
+                      });
+                      widget.onBackToMenu();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white24),
+                      minimumSize: const Size(double.infinity, 42),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: const Icon(Icons.home_rounded, size: 18, color: Color(0xFF7FFFD4)),
+                    label: Text(
+                      isEn ? 'BACK TO MAIN MENU' : 'ANA MENÜYE DÖN',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -3111,21 +3391,23 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       child: Container(
         color: Colors.black.withValues(alpha: 0.80),
         child: Center(
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A0A0A),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.7), width: 2),
-              boxShadow: [
-                BoxShadow(
-                    color: Colors.redAccent.withValues(alpha: 0.3),
-                    blurRadius: 40,
-                    spreadRadius: 2),
-              ],
-            ),
-            child: Column(
+          child: SingleChildScrollView(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              constraints: const BoxConstraints(maxWidth: 400),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 28),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A0A0A),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(color: Colors.redAccent.withValues(alpha: 0.7), width: 2),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.redAccent.withValues(alpha: 0.3),
+                      blurRadius: 40,
+                      spreadRadius: 2),
+                ],
+              ),
+              child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('❌', style: TextStyle(fontSize: 40)),
@@ -3230,8 +3512,9 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMainBoard(BuildContext context, bool isLowEnergy, double tileSize, double spacing) {
     return LayoutBuilder(
@@ -4587,6 +4870,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         setState(() => isLevelFailed = true);
       } else {
         setState(() => isGameOver = true);
+        _submitEndlessScoreInBackground();
       }
     }
   }
