@@ -329,10 +329,16 @@ class LeaderboardService {
 
     try {
       final now = FieldValue.serverTimestamp();
-      await db.collection('leaderboard_endless').doc(user.uid).set({
+      final docRef = db.collection('leaderboard_endless').doc(user.uid);
+      final docSnap = await docRef.get();
+      final Map<String, dynamic> updateData = {
         'nickname': cleanNick,
         'lastUpdated': now,
-      }, SetOptions(merge: true));
+      };
+      if (!docSnap.exists || docSnap.data()?['highScore'] == null) {
+        updateData['highScore'] = 0;
+      }
+      await docRef.set(updateData, SetOptions(merge: true));
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user_nickname', cleanNick);
