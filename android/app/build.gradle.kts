@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.emreoylumlu.pluster"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -47,15 +47,6 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-            ndk {
-                debugSymbolLevel = "NONE"
-            }
-        }
-    }
-
-    packaging {
-        jniLibs {
-            keepDebugSymbols += setOf("**/*.so")
         }
     }
 }
