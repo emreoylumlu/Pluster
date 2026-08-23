@@ -127,101 +127,206 @@ class _PulseGridAppState extends State<PulseGridApp> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final bool isEn = currentLanguage == AppLanguage.en;
         return DefaultTabController(
-          length: 3,
+          length: 4,
           child: Padding(
             padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
             child: GlassCard(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
               padding: const EdgeInsets.all(20),
               child: SizedBox(
-                height: MediaQuery.of(context).size.height * 0.65,
+                height: MediaQuery.of(context).size.height * 0.72,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Header Title + Close
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Pluster Kılavuzu',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF00E676).withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.help_outline_rounded, color: Color(0xFF00E676), size: 22),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              isEn ? 'Pluster Guide' : 'Pluster Kılavuzu',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
+                          icon: const Icon(Icons.close_rounded, color: Colors.white70),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
+
+                    // Tab Bar
                     Container(
+                      height: 42,
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.3),
+                        color: Colors.black.withValues(alpha: 0.35),
                         borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                       ),
-                      child: const TabBar(
-                        indicatorColor: Color(0xFF7FFFD4),
-                        labelColor: Color(0xFF7FFFD4),
-                        unselectedLabelColor: Colors.white60,
+                      child: TabBar(
+                        indicator: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF00E676), Color(0xFF00BFA5)],
+                          ),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         indicatorSize: TabBarIndicatorSize.tab,
+                        dividerColor: Colors.transparent,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: Colors.white54,
+                        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                        isScrollable: true,
+                        tabAlignment: TabAlignment.start,
                         tabs: [
-                          Tab(text: 'Temel'),
-                          Tab(text: 'Özellikler'),
-                          Tab(text: 'Taktikler'),
+                          Tab(text: isEn ? '🎯 Basics' : '🎯 Temel'),
+                          Tab(text: isEn ? '✨ Special Tiles' : '✨ Özel Taşlar'),
+                          Tab(text: isEn ? '⚡ Energy & Skills' : '⚡ Enerji & Yetenek'),
+                          Tab(text: isEn ? '🏆 Modes & Tips' : '🏆 Modlar & Taktik'),
                         ],
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Expanded(
+
+                    // TabBarView Content
+                    Expanded(
                       child: TabBarView(
                         children: [
-                          SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('🎯 TEMEL OYNANIŞ', style: TextStyle(color: Color(0xFF7FFFD4), fontSize: 16, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 8),
-                                Text('• Ekranın altındaki 3 sürükle-bırak slotundan taşları 4x4 oyun tahtasına yerleştir.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• Aynı hücreye taş koyarak değerini 8\'e ulaştır.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• Değeri 8 olan hücre PATLAR ve etrafındaki komşulara ŞOK DALGASI yayarak kombo başlatır!', style: TextStyle(color: Colors.white70)),
-                              ],
+                          // Tab 1: Temel Oynanış
+                          _buildHelpTabContent([
+                            _buildHelpCard(
+                              title: isEn ? '1. Drag & Drop Tiles' : '1. Taşları Sürükle & Bırak',
+                              desc: isEn ? 'Drag tiles from the bottom 3 spawn slots onto the 4x4 grid.' : 'Ekranın altındaki 3 sürükle-bırak slotundan taşları 4x4 oyun ızgarasına taşı.',
+                              icon: Icons.touch_app_rounded,
+                              iconColor: const Color(0xFF00E676),
                             ),
-                          ),
-                          SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('⚡ ÖZEL HÜCRELER', style: TextStyle(color: Color(0xFFFFD166), fontSize: 16, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 8),
-                                Text('• 🧲 EMP Hücresi: Patladığında tüm satır ve sütunu anında temizler.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• ⭐ Çapraz Patlama: Şok dalgasını sadece çapraz komşulara iletir.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• ⚡ 2x Enerji & ✨ 2x Skor: İki kat enerji veya puan kazandırır.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• 🔒 Kilitli Hücre: Sürüklenemez, patlamalarla kırılır.', style: TextStyle(color: Colors.white70)),
-                              ],
+                            _buildHelpCard(
+                              title: isEn ? '2. Combine Values' : '2. Sayıları Birleştir',
+                              desc: isEn ? 'Placing a tile on an existing cell adds their numbers together (e.g. 3 + 2 = 5).' : 'Aynı hücreye yeni taş koyduğunda sayılar toplanır (Örn: 3 + 2 = 5).',
+                              icon: Icons.add_circle_outline_rounded,
+                              iconColor: const Color(0xFFFFD166),
                             ),
-                          ),
-                          SingleChildScrollView(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('💥 YARDIMCI YETENEKLER', style: TextStyle(color: Color(0xFF6AD4FF), fontSize: 16, fontWeight: FontWeight.bold)),
-                                SizedBox(height: 8),
-                                Text('• 💥 Aşırı Yük: Sıkıştığında 1 hücreyi imha eder ve +20⚡ verir.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• 🔄 Yenile: 3 taş slotunu yeni taşlarla tazeleyerek çıkmazdan kurtarır.', style: TextStyle(color: Colors.white70)),
-                                SizedBox(height: 6),
-                                Text('• 🎬 Reklam Canlanma: Yandığında 1 defa %50 Enerji ile oyuna devam etmeni sağlar.', style: TextStyle(color: Colors.white70)),
-                              ],
+                            _buildHelpCard(
+                              title: isEn ? '3. Blast at Value 8!' : '3. Değer 8 Olunca PATLA!',
+                              desc: isEn ? 'When a cell reaches 8, it EXPLODES! Releasing a shockwave to adjacent cells.' : 'Bir hücre 8 değerine ulaştığında PATLAR ve dik komşu hücrelere şok dalgası gönderir!',
+                              icon: Icons.whatshot_rounded,
+                              iconColor: const Color(0xFFFF5252),
                             ),
-                          ),
+                            _buildHelpCard(
+                              title: isEn ? '4. Chain Reactions & Combos' : '4. Zincirleme Kombo',
+                              desc: isEn ? 'If adjacent cells reach 8 from the shockwave, they trigger chain combos for huge scores!' : 'Şok dalgası komşuları 8 yaparsa zincirleme patlamalar gerçekleşir ve skor katlanır!',
+                              icon: Icons.auto_awesome_rounded,
+                              iconColor: const Color(0xFFB388FF),
+                            ),
+                          ]),
+
+                          // Tab 2: Özel Taşlar & Hücreler
+                          _buildHelpTabContent([
+                            _buildHelpCard(
+                              title: isEn ? '✖️ Multiplier Tile' : '✖️ Çarpan Taşı (Multiplier)',
+                              desc: isEn ? 'Multiplies explosion scores by 2x.' : 'Patlamadaki skor çarpanını 2x katlar.',
+                              icon: Icons.clear_rounded,
+                              iconColor: const Color(0xFFFFD166),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🌈 Joker Prism' : '🌈 Joker Prizma',
+                              desc: isEn ? 'Instantly turns any cell into value 8 and explodes it!' : 'Koyulduğu hücrenin değerine bakmaksızın anında 8 yapıp patlatır!',
+                              icon: Icons.palette_rounded,
+                              iconColor: const Color(0xFFFF4081),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🧲 Magnet Tile' : '🧲 Mıknatıs Taşı',
+                              desc: isEn ? 'Pulls all matching value tiles into one center for a mega combo.' : 'Tahtadaki aynı değerli tüm taşları tek merkezde toplayıp patlatır.',
+                              icon: Icons.compress_rounded,
+                              iconColor: const Color(0xFF00E676),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '❄️ Crystal Tile & 🌋 Magma Cell' : '❄️ Kristal & 🌋 Magma Hücresi',
+                              desc: isEn ? 'Grants 3x score multiplier and 2.5x explosion bonuses!' : 'Skor bonusunu 3x ve 2.5x katına çıkarır.',
+                              icon: Icons.diamond_rounded,
+                              iconColor: const Color(0xFF00B0FF),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🛡️ Pulsar Shield & 🔒 Locked Cell' : '🛡️ Pulsar Kalkanı & 🔒 Kilit',
+                              desc: isEn ? 'Shield cell costs 0 energy to place. Locked cells can only be cleared by adjacent explosions.' : 'Kalkana taş koymak 0⚡ harcar. Kilitli hücreler patlamalarla kırılır.',
+                              icon: Icons.shield_rounded,
+                              iconColor: const Color(0xFF00E676),
+                            ),
+                          ]),
+
+                          // Tab 3: Enerji & Yetenekler
+                          _buildHelpTabContent([
+                            _buildHelpCard(
+                              title: isEn ? '⚡ Pulse Energy (⚡)' : '⚡ Pulse Enerjisi (⚡)',
+                              desc: isEn ? 'Placing tiles uses energy proportional to tile value. If energy hits 0%, game over! Explosions refill energy.' : 'Taş koydukça enerji harcanır. Enerji %0 olursa oyun biter! Patlamalar ve kombolar enerji iade eder.',
+                              icon: Icons.bolt_rounded,
+                              iconColor: const Color(0xFF00E676),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '💥 Overload Ability' : '💥 Aşırı Yük (Overload)',
+                              desc: isEn ? 'Destroys 1 filled cell on board and restores +20⚡ energy instantly.' : 'Sıkıştığında 1 dolu hücreyi patlatıp +20⚡ enerji kazandırır.',
+                              icon: Icons.local_fire_department_rounded,
+                              iconColor: const Color(0xFFFF6A45),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🔄 Refresh Spawn Slots' : '🔄 Yenile (Refresh)',
+                              desc: isEn ? 'Refreshes all 3 spawn slots with brand new random tiles.' : 'Alt kısımdaki 3 taş slotunu yeni taşlarla tazeler.',
+                              icon: Icons.refresh_rounded,
+                              iconColor: const Color(0xFF4FC3F7),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🎬 Ad Revival' : '🎬 Reklam Canlanma',
+                              desc: isEn ? 'Allows 1 continue per run with +50% Pulse Energy upon defeat.' : 'Yandığında 1 defaya mahsus %50 Enerji ile devam etmeni sağlar.',
+                              icon: Icons.play_circle_fill_rounded,
+                              iconColor: const Color(0xFFFFD166),
+                            ),
+                          ]),
+
+                          // Tab 4: Modlar & Taktikler
+                          _buildHelpTabContent([
+                            _buildHelpCard(
+                              title: isEn ? '♾️ Endless Mode' : '♾️ Sonsuz Mod',
+                              desc: isEn ? 'Manage energy, unlimited moves, chase high score records!' : 'Enerjini yönet, sınırsız hamleyle en yüksek skor rekorunu kır.',
+                              icon: Icons.all_inclusive_rounded,
+                              iconColor: const Color(0xFF00E676),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🎯 Stage Mode (100 Levels)' : '🎯 Seviye Modu (100 Bölüm)',
+                              desc: isEn ? 'Beat move limits and objective targets across 100 hand-crafted stages!' : '100 farklı bölümde hamle sınırları ve hedeflerle 3 yıldız topla.',
+                              icon: Icons.auto_awesome_motion_rounded,
+                              iconColor: const Color(0xFFB388FF),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '🎲 Climb Mode (Roguelike)' : '🎲 Tırmanış Modu (Roguelike)',
+                              desc: isEn ? 'Climb floors, draft card synergies, and defeat mini-bosses!' : 'Kat kat yüksel, kart taslakları topla ve mini boss\'ları yen!',
+                              icon: Icons.style_rounded,
+                              iconColor: const Color(0xFFFF4081),
+                            ),
+                            _buildHelpCard(
+                              title: isEn ? '💡 Pro Strategy Tip' : '💡 Profesyonel İpucu',
+                              desc: isEn ? 'Place a 1 tile next to a 7 tile to trigger controlled explosions. Set up multi-8 setups for massive combos!' : '7 değerli taşın yanına 1 koyarak kontrollü patlamalar yap, tek hamlede birden fazla 8 patlatıp zincir yakala!',
+                              icon: Icons.lightbulb_outline_rounded,
+                              iconColor: const Color(0xFFFFD166),
+                            ),
+                          ]),
                         ],
                       ),
                     ),
@@ -232,6 +337,71 @@ class _PulseGridAppState extends State<PulseGridApp> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildHelpTabContent(List<Widget> children) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        children: children,
+      ),
+    );
+  }
+
+  Widget _buildHelpCard({
+    required String title,
+    required String desc,
+    required IconData icon,
+    required Color iconColor,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: iconColor.withValues(alpha: 0.25), width: 1.2),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: iconColor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: iconColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  desc,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -304,6 +474,18 @@ class _PulseGridAppState extends State<PulseGridApp> {
     await PersistenceManager.saveActiveRunState(newRunState);
   }
 
+  void _resetAllGameProgress() async {
+    await PersistenceManager.clearAllData();
+    setState(() {
+      globalHighScore = 0;
+      levelStars = {};
+      activeRunState = null;
+      activeRunNode = null;
+      activeMode = null;
+      selectedLevel = null;
+    });
+  }
+
   Widget _buildHomeWidget(BuildContext context) {
     if (activeMode == null) {
       return MainMenuScreen(
@@ -320,6 +502,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
           });
         },
         onOpenHelp: () => _showHelpBottomSheet(context),
+        onResetGame: _resetAllGameProgress,
       );
     }
 
@@ -636,7 +819,9 @@ class _PulseGridAppState extends State<PulseGridApp> {
       theme: ThemeData.dark().copyWith(
         scaffoldBackgroundColor: const Color(0xFF0B132B),
       ),
-      home: _buildHomeWidget(context),
+      home: Builder(
+        builder: (innerContext) => _buildHomeWidget(innerContext),
+      ),
     );
   }
 }
@@ -718,7 +903,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   // ── Level Mode Tracking ──────────────────────
   int levelMoveCount = 0;
-  int levelBombsUsed = 0;
+  int levelBombTilesCleared = 0;
   int levelComboChains = 0;
   int levelEmpFired = 0;
   int levelLockedCleared = 0;
@@ -1044,7 +1229,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           bossDesc = config['bossDesc'] as String? ?? 'Etrafında patlama yaparak Boss\'un Canını düşür!';
         }
 
-        bossMaxHp = config['bossHp'] as int? ?? (bossType == 'energyThiefMiniBoss' ? 3200 : 10);
+        bossMaxHp = config['bossHp'] as int? ?? (rNode.type == rgl.NodeType.finalBoss ? 20 : 10);
         bossHp = bossMaxHp;
         bossActionCounter = 0;
         isBossEnraged = false;
@@ -1125,7 +1310,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       adCountdown = 3;
       // Level tracking reset
       levelMoveCount = 0;
-      levelBombsUsed = 0;
+      levelBombTilesCleared = 0;
       levelComboChains = 0;
       levelEmpFired = 0;
       levelLockedCleared = 0;
@@ -1281,8 +1466,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       int roll = Random().nextInt(100);
 
-      // Dengeli Özel Taş İhtimali (%12)
-      if (roll < 12 && specialTypes.isNotEmpty) {
+      // Dengeli Özel Taş İhtimali (%7)
+      if (roll < 7 && specialTypes.isNotEmpty) {
         final chosenType = specialTypes[Random().nextInt(specialTypes.length)];
         switch (chosenType) {
           case TileType.bomb:
@@ -1322,10 +1507,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         : (level == null || level.id >= 21 || level.forceMultiplierAvailable);
 
     int roll = Random().nextInt(100);
-    if (!allowBomb && roll >= 90) roll = Random().nextInt(75);
-    if (!allowMultiplier && roll >= 75 && roll < 90) roll = Random().nextInt(75);
+    if (!allowBomb && roll >= 95) roll = Random().nextInt(83);
+    if (!allowMultiplier && roll >= 83 && roll < 95) roll = Random().nextInt(83);
 
-    if (roll < 75 || (!allowMultiplier && !allowBomb)) {
+    if (roll < 83 || (!allowMultiplier && !allowBomb)) {
       int val;
       if (widget.mode == GameMode.endless) {
         if (score >= 4000) {
@@ -1383,10 +1568,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         val = Random().nextInt(3) + 1;
       }
       return TileData(value: val, type: TileType.normal);
-    } else if (roll < 90 && allowMultiplier) {
+    } else if (roll < 95 && allowMultiplier) {
       return TileData(value: 2, type: TileType.multiplier);
     } else if (allowBomb) {
-      if (score >= 1200 && Random().nextInt(100) < 35) {
+      if (score >= 1200 && Random().nextInt(100) < 20) {
         return TileData(value: 0, type: TileType.prism);
       }
       return TileData(value: 0, type: TileType.bomb);
@@ -1442,6 +1627,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     _showEnergyFloatingText('🎬 CANLANDIN! +50% ⚡');
     _triggerEnergyPulse(true);
+
+    if (widget.level != null) {
+      _checkLevelObjectives();
+    }
   }
 
   void _startAdMoveBoostFlow() {
@@ -1477,6 +1666,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     _showEnergyFloatingText('🎬 +5 HAMLE KAZANILDI!');
     _triggerEnergyPulse(true);
+
+    if (widget.level != null) {
+      _checkLevelObjectives();
+    }
   }
 
   void _triggerScorePulse() {
@@ -1876,8 +2069,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return obj.target > 0 ? levelLockedCleared / obj.target : 1.0;
       case ObjectiveType.energyRemaining:
         return obj.target > 0 ? energy / obj.target : 1.0;
-      case ObjectiveType.bombUsed:
-        return obj.target > 0 ? levelBombsUsed / obj.target : 1.0;
+      case ObjectiveType.bombTilesCleared:
+        return obj.target > 0 ? levelBombTilesCleared / obj.target : 1.0;
       case ObjectiveType.multiplierExplosion:
         return obj.target > 0 ? levelMultiplierExplosions / obj.target : 1.0;
     }
@@ -1893,8 +2086,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return Icons.lock_open_rounded;
       case ObjectiveType.energyRemaining:
         return Icons.battery_charging_full_rounded;
-      case ObjectiveType.bombUsed:
-        return Icons.waves_rounded;
+      case ObjectiveType.bombTilesCleared:
+        return Icons.whatshot_rounded;
       case ObjectiveType.multiplierExplosion:
         return Icons.close_rounded;
     }
@@ -1910,8 +2103,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return '$levelLockedCleared / ${obj.target}';
       case ObjectiveType.energyRemaining:
         return '${energy.toInt()}% / ${obj.target}%';
-      case ObjectiveType.bombUsed:
-        return '$levelBombsUsed / ${obj.target}';
+      case ObjectiveType.bombTilesCleared:
+        return '$levelBombTilesCleared / ${obj.target}';
       case ObjectiveType.multiplierExplosion:
         return '$levelMultiplierExplosions / ${obj.target}';
     }
@@ -3405,13 +3598,15 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     // Level move tracking
     if (level != null) {
       levelMoveCount++;
-      if (tile.type == TileType.bomb) levelBombsUsed++;
     }
 
     if (tile.type == TileType.bomb) {
       HapticFeedback.heavyImpact();
       _triggerScreenShake();
       int clearedCount = _clearCellAndNeighbors(r, c);
+      if (level != null) {
+        levelBombTilesCleared += clearedCount;
+      }
       double energyGained = 15.0 + (clearedCount * 10.0);
       setState(() {
         activeVfxType = 'bomb';
@@ -3803,6 +3998,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         bossThreatType = 'corrupted';
         bossThreatMessage = '⚠️ BOZUK VERİ: Bir hücre bozulacak';
         break;
+      case 'mysteryMiniBoss':
+        bossThreatType = 'mystery';
+        bossThreatMessage = '⚠️ GİZEM: Taş simgeleri gizlenecek';
+        break;
+      case 'energyDrainerMiniBoss':
+        bossThreatType = 'drainer';
+        bossThreatMessage = '⚠️ EMİCİ: Enerji emilimi başlatılıyor';
+        break;
       case 'voltBomberMiniBoss':
         bossThreatType = 'volt';
         bossThreatMessage = '⚠️ VOLTAJ: Bir hücre bombaya dönüşecek';
@@ -3882,6 +4085,18 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           grid[point.r][point.c].value = (grid[point.r][point.c].value > 0 ? grid[point.r][point.c].value : 2).clamp(1, 8);
         });
         _showEnergyFloatingText('👾 BOZUK VERİ: HÜCRE BOZULDU');
+        break;
+      case 'mystery':
+        setState(() {
+          isMysteryMode = true;
+        });
+        _showEnergyFloatingText('❓ GİZEM: TAŞ SİMGELERİ GİZLENDİ!');
+        break;
+      case 'drainer':
+        setState(() {
+          energy = (energy - 10.0).clamp(0.0, 100.0);
+        });
+        _showEnergyFloatingText('🔋 EMİCİ: -10 ENERJİ KAYBEDİLDİ!');
         break;
       case 'volt':
         setState(() {
@@ -4048,8 +4263,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         _showEnergyFloatingText('💎 +20 KRİSTAL!');
       }
 
-      // Skor Hesabı
-      int basePoints = 100 * comboCount * (wasMultiplier ? 2 : 1);
+      // Skor Hesabı: Üstel Katlanan Kombo Gücü (150 * N^2)
+      int basePoints = (150 * comboCount * comboCount * (wasMultiplier ? 2 : 1));
       if (currentSpecial == CellSpecialType.doubleScore) {
         basePoints *= 2;
       }
@@ -4185,7 +4400,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
           }
         }
 
-        final bool shouldDamage = hasBossCore ? touchesBoss : comboCount >= 2;
+        final bool shouldDamage = hasBossCore ? touchesBoss : comboCount >= 1;
         if (shouldDamage) {
           final bool isWeakSpotHit = currentSpecial == CellSpecialType.bossWeakSpot ||
               (weakSpotPoint != null && weakSpotPoint!.r == r && weakSpotPoint!.c == c);
@@ -4271,8 +4486,28 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
 
     // Count this as a combo chain if 2+ explosions occurred
+    int totalExplosions = comboCount - 1;
     if (hadChainCombo && widget.level != null) {
       levelComboChains++;
+    }
+
+    if (totalExplosions >= 2) {
+      int burstBonus = 0;
+      String burstText = '';
+      if (totalExplosions == 2) {
+        burstBonus = 200;
+        burstText = '✨ +200 ÇİFT ZİNCİR BONUSU!';
+      } else if (totalExplosions == 3) {
+        burstBonus = 600;
+        burstText = '🔥 +600 SÜPER ZİNCİR BONUSU!';
+      } else {
+        burstBonus = 1500;
+        burstText = '👑 +1.500 EFSANEVİ ZİNCİR BONUSU!';
+      }
+
+      _updateScore(burstBonus);
+      _showEnergyFloatingText(burstText);
+      HapticFeedback.heavyImpact();
     }
 
     await Future.delayed(const Duration(milliseconds: 300));
@@ -4294,8 +4529,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
         return levelLockedCleared >= obj.target;
       case ObjectiveType.energyRemaining:
         return energy >= obj.target.toDouble();
-      case ObjectiveType.bombUsed:
-        return levelBombsUsed >= obj.target;
+      case ObjectiveType.bombTilesCleared:
+        return levelBombTilesCleared >= obj.target;
       case ObjectiveType.multiplierExplosion:
         return levelMultiplierExplosions >= obj.target;
     }

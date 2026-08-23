@@ -58,9 +58,9 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 6, chapter: 1,
     name: 'Bomba!',
-    description: 'Tahta dolmaya başlıyor. Bomba taşını keşfet!',
+    description: 'Tahta dolmaya başlıyor. Bomba ile taşları sil!',
     objectives: [
-      LevelObjective(type: ObjectiveType.bombUsed, target: 1, label: '1 Bomba Kullan'),
+      LevelObjective(type: ObjectiveType.bombTilesCleared, target: 3, label: '3 Taş Bombala'),
     ],
     constraints: LevelConstraints(moveLimit: 15),
     forceBombAvailable: true,
@@ -68,9 +68,9 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 7, chapter: 1,
     name: 'Patlayalım',
-    description: 'Bomba güçlü bir araç — biraz egzersiz yap.',
+    description: 'Bomba güçlü bir araç — kalabalık alanları temizle.',
     objectives: [
-      LevelObjective(type: ObjectiveType.bombUsed, target: 2, label: '2 Bomba Kullan'),
+      LevelObjective(type: ObjectiveType.bombTilesCleared, target: 6, label: '6 Taş Bombala'),
     ],
     constraints: LevelConstraints(moveLimit: 20),
     forceBombAvailable: true,
@@ -78,9 +78,9 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 8, chapter: 1,
     name: 'Temizle',
-    description: 'Bombayla hem temizle hem puan al.',
+    description: 'Bombayla hem alan temizle hem puan al.',
     objectives: [
-      LevelObjective(type: ObjectiveType.bombUsed, target: 2, label: '2 Bomba Kullan'),
+      LevelObjective(type: ObjectiveType.bombTilesCleared, target: 6, label: '6 Taş Bombala'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1200, label: '1.200 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 20),
@@ -89,9 +89,9 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 9, chapter: 1,
     name: 'Bomba Ustası',
-    description: 'Bombaları stratejik pozisyonlarda kullan.',
+    description: '10 taşı bombayla silerek usta ol.',
     objectives: [
-      LevelObjective(type: ObjectiveType.bombUsed, target: 3, label: '3 Bomba Kullan'),
+      LevelObjective(type: ObjectiveType.bombTilesCleared, target: 10, label: '10 Taş Bombala'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1500, label: '1.500 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
@@ -789,10 +789,10 @@ const List<LevelData> kAllLevels = [
   LevelData(
     id: 63, chapter: 3,
     name: 'Bomba Dalgası',
-    description: 'Bombaları etkili pozisyonlarda patlat.',
+    description: 'Bombaları etkili pozisyonlarda patlatıp 15 taş sil.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 27000, label: '27.000 Puan'),
-      LevelObjective(type: ObjectiveType.bombUsed, target: 4, label: '4 Bomba Kullan'),
+      LevelObjective(type: ObjectiveType.bombTilesCleared, target: 15, label: '15 Taş Bombala'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
     forceBombAvailable: true,

@@ -11,7 +11,7 @@ enum ObjectiveType {
   comboCount,
   clearLocked,
   energyRemaining,
-  bombUsed,
+  bombTilesCleared,
   multiplierExplosion,
 }
 

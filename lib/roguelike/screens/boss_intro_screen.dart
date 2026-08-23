@@ -245,12 +245,12 @@ class BossInfo {
           abilities: [
             BossAbilityInfo(
               title: 'Taşlaşma',
-              description: 'Her 5 turda 1 rastgele taş taşlaşır ve kilitlenir.',
+              description: 'Her 10 turda 1 rastgele taş taşlaşır ve kilitlenir.',
               icon: Icons.lock_rounded,
             ),
           ],
           tactics: [
-            'Kilitlenen hücreleri Bomba veya EMP ile aç.',
+            'Kilitlenen hücreleri Bomba veya Joker Prizma ile aç.',
           ],
         );
 

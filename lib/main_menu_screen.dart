@@ -9,6 +9,7 @@ class MainMenuScreen extends StatefulWidget {
   final int highScore;
   final Function(GameMode mode) onSelectMode;
   final VoidCallback onOpenHelp;
+  final VoidCallback onResetGame;
   final AppLanguage currentLanguage;
   final VoidCallback onLanguageToggle;
 
@@ -17,6 +18,7 @@ class MainMenuScreen extends StatefulWidget {
     required this.highScore,
     required this.onSelectMode,
     required this.onOpenHelp,
+    required this.onResetGame,
     this.currentLanguage = AppLanguage.tr,
     required this.onLanguageToggle,
   });
@@ -468,19 +470,147 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
   }
 
   Widget _buildFooterControls() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
+    final bool isEn = widget.currentLanguage == AppLanguage.en;
+    return Column(
       children: [
+        TextButton.icon(
+          onPressed: () => _showResetConfirmationDialog(context),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFFFF5252).withValues(alpha: 0.8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          ),
+          icon: const Icon(Icons.restore_rounded, size: 16, color: Color(0xFFFF5252)),
+          label: Text(
+            isEn ? 'RESET ALL GAME DATA' : 'TÜM OYUNU SIFIRLA',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        const SizedBox(height: 2),
         Text(
           'v2.0 • Pulse Engine Activated',
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.35),
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
             letterSpacing: 1.0,
           ),
         ),
       ],
+    );
+  }
+
+  void _showResetConfirmationDialog(BuildContext context) {
+    final bool isEn = widget.currentLanguage == AppLanguage.en;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              constraints: const BoxConstraints(maxWidth: 380),
+              child: Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1B35).withValues(alpha: 0.95),
+                  borderRadius: BorderRadius.circular(28),
+                  border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.4), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 25,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFFFF5252).withValues(alpha: 0.15),
+                        border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.4), width: 1.2),
+                      ),
+                      child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252), size: 36),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      isEn ? 'RESET ALL PROGRESS?' : 'OYUNU SIFIRLA?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      isEn
+                          ? 'All high scores, unlocked levels (100 levels), and earned stars will be permanently erased. This cannot be undone!'
+                          : 'Tüm rekorların, açılan seviyelerin (100 bölüm) ve topladığın yıldızların kalıcı olarak silinecektir. Bu işlem GERİ ALINAMAZ!',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.white70,
+                              side: const BorderSide(color: Colors.white24),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            ),
+                            child: Text(
+                              isEn ? 'CANCEL' : 'İPTAL ET',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                              widget.onResetGame();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF5252),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 8,
+                            ),
+                            child: Text(
+                              isEn ? 'YES, RESET' : 'EVET, SIFIRLA',
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

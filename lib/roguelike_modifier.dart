@@ -61,7 +61,7 @@ class RoguelikeModifier {
         isBoss: true,
         energyCostMultiplier: 1.30,
         initialLockedCells: 2,
-        stoneCurseInterval: 5,
+        stoneCurseInterval: 10,
       );
     } else {
       // Procedural Floor 11+
@@ -80,7 +80,7 @@ class RoguelikeModifier {
         isBoss: isBossFloor,
         energyCostMultiplier: energyMult,
         initialLockedCells: lockedCount,
-        stoneCurseInterval: 5,
+        stoneCurseInterval: 10,
       );
     }
   }

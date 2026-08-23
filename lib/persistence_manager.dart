@@ -124,4 +124,9 @@ class PersistenceManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyActiveRun);
   }
+
+  static Future<void> clearAllData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
 }
