@@ -274,16 +274,6 @@ const List<RoguelikeCard> kRoguelikeCards = [
     unlocksCellType: CellSpecialType.shield,
   ),
   RoguelikeCard(
-    id: 'unlock_cell_crystal_vein',
-    name: 'Kristal Damarı (💎)',
-    description: 'Izgarada 💎 Kristal Damarı hücresi belirir. Patladığında +20 Pulsar Kristali verir.',
-    synergyNote: 'Ekonomi ve kristal biriktirme odaklı kart.',
-    tier: RoguelikeCardTier.tier3,
-    icon: Icons.diamond_rounded,
-    color: Color(0xFFFF4081),
-    unlocksCellType: CellSpecialType.crystalVein,
-  ),
-  RoguelikeCard(
     id: 'lock_breaker',
     name: 'Kilit Kırıcı Usta',
     description: 'Kilitli engel kırıldığında ekstra +500 Puan ve +15⚡ verir.',

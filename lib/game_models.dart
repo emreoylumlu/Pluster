@@ -1,6 +1,6 @@
 enum TileType { normal, bomb, multiplier, prism, magnet, crystal, contagion, wildcard, nova, vortex, equalizer }
 
-enum CellSpecialType { none, locked, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, crystalVein, bossCore, bossWeakSpot, frozen, decay, voltBomb, corrupted, mystery }
+enum CellSpecialType { none, locked, diagonal, doubleEnergy, doubleScore, vortex, shield, overheat, bossCore, bossWeakSpot, frozen, decay, voltBomb, corrupted, mystery }
 
 enum GridLayoutType { classic4x4, cross, diamond }
 
@@ -25,6 +25,24 @@ class LevelObjective {
     required this.target,
     required this.label,
   });
+
+  String getLocalizedLabel(bool isEn) {
+    if (!isEn) return label;
+    switch (type) {
+      case ObjectiveType.scoreTarget:
+        return '$target Points';
+      case ObjectiveType.comboCount:
+        return target == 1 ? '1 Chain Combo' : '$target Chain Combos';
+      case ObjectiveType.clearLocked:
+        return target == 1 ? 'Clear 1 Locked Cell' : 'Clear $target Locked Cells';
+      case ObjectiveType.energyRemaining:
+        return 'Energy ≥ $target%';
+      case ObjectiveType.bombTilesCleared:
+        return target == 1 ? 'Bomb 1 Tile' : 'Bomb $target Tiles';
+      case ObjectiveType.multiplierExplosion:
+        return target == 1 ? 'Explode 1 Multiplier' : 'Explode $target Multipliers';
+    }
+  }
 }
 
 class LevelConstraints {
@@ -71,6 +89,7 @@ class LevelData {
   });
 
   String get displayTitle => (title.isNotEmpty ? title : name) ?? 'Bölüm $id';
+  String getLocalizedTitle(bool isEn) => isEn ? 'Stage $id' : displayTitle;
   LevelObjective get displayObjective => objective ?? (objectives != null && objectives!.isNotEmpty ? objectives!.first : const LevelObjective(type: ObjectiveType.scoreTarget, target: 500, label: '500 Puan'));
   List<LevelObjective> get displayObjectives => objectives ?? (objective != null ? [objective!] : const []);
 }

@@ -24,6 +24,14 @@ class PersistenceManager {
   static const String _keyLevelStars = 'pluster_level_stars';
   static const String _keyLanguage = 'pluster_language';
   static const String _keyActiveRun = 'pluster_active_run';
+  static const String _keyTutorialCompleted = 'pluster_tutorial_completed';
+  static const String _keySeenBombTutorial = 'pluster_seen_bomb_tutorial';
+  static const String _keySeenMultiplierTutorial = 'pluster_seen_multiplier_tutorial';
+  static const String _keySeenPrismTutorial = 'pluster_seen_prism_tutorial';
+  static const String _keySeenDiagonalTutorial = 'pluster_seen_diagonal_tutorial';
+  static const String _keySeenDoubleEnergyTutorial = 'pluster_seen_double_energy_tutorial';
+  static const String _keySeenDoubleScoreTutorial = 'pluster_seen_double_score_tutorial';
+  static const String _keySeenLockedTutorial = 'pluster_seen_locked_tutorial';
 
   static Future<PersistenceData> loadAllData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -123,6 +131,67 @@ class PersistenceManager {
   static Future<void> clearActiveRun() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyActiveRun);
+  }
+
+  // --- Tutorial Persistence ---
+
+  static Future<bool> hasTutorialCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyTutorialCompleted) ?? false;
+  }
+
+  static Future<void> setTutorialCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTutorialCompleted, true);
+  }
+
+  static Future<bool> hasSeenFeatureTutorial(String featureKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    switch (featureKey) {
+      case 'bomb':
+        return prefs.getBool(_keySeenBombTutorial) ?? false;
+      case 'multiplier':
+        return prefs.getBool(_keySeenMultiplierTutorial) ?? false;
+      case 'prism':
+        return prefs.getBool(_keySeenPrismTutorial) ?? false;
+      case 'diagonal':
+        return prefs.getBool(_keySeenDiagonalTutorial) ?? false;
+      case 'double_energy':
+        return prefs.getBool(_keySeenDoubleEnergyTutorial) ?? false;
+      case 'double_score':
+        return prefs.getBool(_keySeenDoubleScoreTutorial) ?? false;
+      case 'locked':
+        return prefs.getBool(_keySeenLockedTutorial) ?? false;
+      default:
+        return true;
+    }
+  }
+
+  static Future<void> setFeatureTutorialSeen(String featureKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    switch (featureKey) {
+      case 'bomb':
+        await prefs.setBool(_keySeenBombTutorial, true);
+        break;
+      case 'multiplier':
+        await prefs.setBool(_keySeenMultiplierTutorial, true);
+        break;
+      case 'prism':
+        await prefs.setBool(_keySeenPrismTutorial, true);
+        break;
+      case 'diagonal':
+        await prefs.setBool(_keySeenDiagonalTutorial, true);
+        break;
+      case 'double_energy':
+        await prefs.setBool(_keySeenDoubleEnergyTutorial, true);
+        break;
+      case 'double_score':
+        await prefs.setBool(_keySeenDoubleScoreTutorial, true);
+        break;
+      case 'locked':
+        await prefs.setBool(_keySeenLockedTutorial, true);
+        break;
+    }
   }
 
   static Future<void> clearAllData() async {

@@ -478,7 +478,7 @@ class _NicknameDialogState extends State<_NicknameDialog> {
       _errorText = null;
     });
 
-    final res = await LeaderboardService.instance.setNickname(nick);
+    final res = await LeaderboardService.instance.setNickname(nick, isEn: widget.isEn);
 
     if (mounted) {
       setState(() => _isSubmitting = false);

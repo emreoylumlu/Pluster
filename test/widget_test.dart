@@ -5,6 +5,7 @@
 // gestures. You can also use WidgetTester to find child widgets in the widget
 // tree, read text, and verify that the values of widget properties are correct.
 
+import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pluster/main.dart';
@@ -12,6 +13,11 @@ import 'package:pluster/roguelike/roguelike_models.dart';
 
 void main() {
   testWidgets('App shows the Pluster title', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(const PulseGridApp());
 
     expect(find.text('PLUSTER'), findsOneWidget);

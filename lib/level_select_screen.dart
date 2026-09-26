@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'game_models.dart';
 import 'levels.dart';
+import 'localization.dart';
 
 class LevelSelectScreen extends StatefulWidget {
   final Map<int, int> levelStars;
   final int unlockedUpTo;
   final void Function(LevelData level) onSelectLevel;
   final VoidCallback onBackToMenu;
+  final AppLanguage currentLanguage;
 
   const LevelSelectScreen({
     super.key,
@@ -16,6 +18,7 @@ class LevelSelectScreen extends StatefulWidget {
     required this.unlockedUpTo,
     required this.onSelectLevel,
     required this.onBackToMenu,
+    this.currentLanguage = AppLanguage.tr,
   });
 
   static void showLevelStartDialog({
@@ -23,6 +26,7 @@ class LevelSelectScreen extends StatefulWidget {
     required LevelData level,
     required int earnedStars,
     required VoidCallback onStart,
+    bool isEn = false,
   }) {
     showDialog(
       context: context,
@@ -64,7 +68,7 @@ class LevelSelectScreen extends StatefulWidget {
                               border: Border.all(color: const Color(0xFF7FFFD4).withValues(alpha: 0.4), width: 1),
                             ),
                             child: Text(
-                              'BÖLÜM ${level.chapter} • SEVİYE ${level.id}',
+                              '${isEn ? "CHAPTER" : "BÖLÜM"} ${level.chapter} • ${isEn ? "STAGE" : "SEVİYE"} ${level.id}',
                               style: const TextStyle(
                                 color: Color(0xFF7FFFD4),
                                 fontSize: 11,
@@ -90,7 +94,7 @@ class LevelSelectScreen extends StatefulWidget {
 
                       // Level Name
                       Text(
-                        level.name ?? 'Seviye ${level.id}',
+                        isEn ? 'Stage ${level.id}' : (level.name ?? 'Seviye ${level.id}'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -98,7 +102,7 @@ class LevelSelectScreen extends StatefulWidget {
                           letterSpacing: 1.2,
                         ),
                       ),
-                      if (level.description != null && level.description!.isNotEmpty) ...[
+                      if (level.description != null && level.description!.isNotEmpty && !isEn) ...[
                         const SizedBox(height: 6),
                         Text(
                           level.description!,
@@ -116,13 +120,13 @@ class LevelSelectScreen extends StatefulWidget {
                       const SizedBox(height: 16),
 
                       // Objectives Header
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.assignment_turned_in_rounded, color: Color(0xFFFFD166), size: 18),
-                          SizedBox(width: 8),
+                          const Icon(Icons.assignment_turned_in_rounded, color: Color(0xFFFFD166), size: 18),
+                          const SizedBox(width: 8),
                           Text(
-                            'SEVİYE GÖREVLERİ',
-                            style: TextStyle(
+                            isEn ? 'STAGE OBJECTIVES' : 'SEVİYE GÖREVLERİ',
+                            style: const TextStyle(
                               color: Color(0xFFFFD166),
                               fontSize: 13,
                               fontWeight: FontWeight.w900,
@@ -160,7 +164,7 @@ class LevelSelectScreen extends StatefulWidget {
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Text(
-                                  obj.label,
+                                  obj.getLocalizedLabel(isEn),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 13,
@@ -188,7 +192,7 @@ class LevelSelectScreen extends StatefulWidget {
                               const Icon(Icons.timer_rounded, color: Color(0xFFFF5252), size: 18),
                               const SizedBox(width: 10),
                               Text(
-                                'Hamle Sınırı: ${level.constraints!.moveLimit} Hamle',
+                                '${isEn ? "Move Limit" : "Hamle Sınırı"}: ${level.constraints!.moveLimit} ${isEn ? "Moves" : "Hamle"}',
                                 style: const TextStyle(
                                   color: Color(0xFFFF5252),
                                   fontSize: 13,
@@ -214,7 +218,7 @@ class LevelSelectScreen extends StatefulWidget {
                                 padding: const EdgeInsets.symmetric(vertical: 13),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               ),
-                              child: const Text('İPTAL', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              child: Text(isEn ? 'CANCEL' : 'İPTAL', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -233,9 +237,9 @@ class LevelSelectScreen extends StatefulWidget {
                                 elevation: 10,
                               ),
                               icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                              label: const Text(
-                                'BAŞLA ➔',
-                                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5),
+                              label: Text(
+                                isEn ? 'START ➔' : 'BAŞLA ➔',
+                                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, letterSpacing: 0.5),
                               ),
                             ),
                           ),
@@ -304,12 +308,15 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
     super.dispose();
   }
 
+  bool get isEn => widget.currentLanguage == AppLanguage.en;
+
   void _showLevelStartDialog(BuildContext context, LevelData level, int earnedStars) {
     LevelSelectScreen.showLevelStartDialog(
       context: context,
       level: level,
       earnedStars: earnedStars,
       onStart: () => widget.onSelectLevel(level),
+      isEn: isEn,
     );
   }
 
@@ -367,35 +374,44 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                HapticFeedback.lightImpact();
-                                widget.onBackToMenu();
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.08),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  HapticFeedback.lightImpact();
+                                  widget.onBackToMenu();
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.08),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                                  ),
+                                  child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
                                 ),
-                                child: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
                               ),
-                            ),
-                            const SizedBox(width: 14),
-                            const Text(
-                              'SEVİYE SEÇİMİ',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.2,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    isEn ? 'STAGE SELECT' : 'SEVİYE SEÇİMİ',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
@@ -474,7 +490,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                                         ),
                                         const SizedBox(width: 8),
                                         Text(
-                                          'BÖLÜM $chapterNum',
+                                          '${isEn ? "CHAPTER" : "BÖLÜM"} $chapterNum',
                                           style: TextStyle(
                                             color: isChapterUnlocked ? const Color(0xFF7FFFD4) : Colors.redAccent,
                                             fontWeight: FontWeight.w900,
@@ -567,7 +583,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'BÖLÜM $chapterNum KİLİTLİ',
+                      isEn ? 'CHAPTER $chapterNum LOCKED' : 'BÖLÜM $chapterNum KİLİTLİ',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
@@ -577,7 +593,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Açmak için $reqStars Yıldız gerekli!',
+                      isEn ? '$reqStars Stars required to unlock!' : 'Açmak için $reqStars Yıldız gerekli!',
                       style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
@@ -614,7 +630,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
                 ),
               ),
               Text(
-                '$remaining ⭐ Daha Gerekli',
+                isEn ? '$remaining ⭐ More Needed' : '$remaining ⭐ Daha Gerekli',
                 style: const TextStyle(
                   color: Colors.white54,
                   fontSize: 12,
@@ -630,14 +646,16 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
               color: Colors.white.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                Icon(Icons.lightbulb_outline_rounded, color: Color(0xFF7FFFD4), size: 18),
-                SizedBox(width: 8),
+                const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFF7FFFD4), size: 18),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Önceki seviyeleri 3 yıldız yaparak eksik yıldızlarını tamamlayabilirsin!',
-                    style: TextStyle(
+                    isEn
+                        ? 'Earn 3 stars on previous stages to collect missing stars!'
+                        : 'Önceki seviyeleri 3 yıldız yaparak eksik yıldızlarını tamamlayabilirsin!',
+                    style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -663,7 +681,11 @@ class _LevelSelectScreenState extends State<LevelSelectScreen>
               HapticFeedback.vibrate();
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Seviye ${level.id} kilitli! Önceki seviyeleri tamamla.'),
+                  content: Text(
+                    isEn
+                        ? 'Stage ${level.id} locked! Complete previous stages.'
+                        : 'Seviye ${level.id} kilitli! Önceki seviyeleri tamamla.',
+                  ),
                   duration: const Duration(seconds: 2),
                   backgroundColor: Colors.redAccent.shade700,
                 ),

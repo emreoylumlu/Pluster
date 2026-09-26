@@ -167,12 +167,17 @@ class _CardDraftScreenState extends State<CardDraftScreen> {
                           shadowColor: _getTierColor(_selectedCard!.tier).withValues(alpha: 0.5),
                         ),
                         icon: const Icon(Icons.check_circle_rounded, size: 20),
-                        label: Text(
-                          '"${_selectedCard!.name.toUpperCase()}" SEÇ VE HARİTAYA DÖN ➔',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.8,
+                        label: Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '"${_selectedCard!.name.toUpperCase()}" SEÇ VE HARİTAYA DÖN ➔',
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
                           ),
                         ),
                       ),

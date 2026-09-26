@@ -148,9 +148,11 @@ class _WorkshopScreenState extends State<WorkshopScreen> {
 
   // Main 2 Choices View
   Widget _buildMainChoiceButtons(List<CardDefinition> playerCards) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
         // Choice 1: Rest & Charge +30⚡ Energy
         InkWell(
           borderRadius: BorderRadius.circular(24),
@@ -284,8 +286,9 @@ class _WorkshopScreenState extends State<WorkshopScreen> {
           ),
         ),
       ],
-    );
-  }
+    ),
+  );
+}
 
   // Card Selection View for Upgrade
   Widget _buildCardSelectionView(List<CardDefinition> playerCards) {

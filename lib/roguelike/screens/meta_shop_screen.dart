@@ -124,7 +124,7 @@ class _MetaShopScreenState extends State<MetaShopScreen> {
                       physics: const BouncingScrollPhysics(),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
-                        childAspectRatio: 0.65,
+                        childAspectRatio: 0.58,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),

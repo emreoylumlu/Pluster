@@ -247,8 +247,8 @@ class StoneTileCardWidget extends StatelessWidget {
               const SizedBox(height: 8),
 
               // ── 2. 3D Stone Tile Box ──
-              _buildStoneTileBox(tierColor, cardIcon, size: 68),
-              const SizedBox(height: 8),
+              _buildStoneTileBox(tierColor, cardIcon, size: 60),
+              const SizedBox(height: 6),
 
               // ── 3. Title ──
               Text(
@@ -266,7 +266,8 @@ class StoneTileCardWidget extends StatelessWidget {
               const SizedBox(height: 4),
 
               // ── 4. Description ──
-              Expanded(
+              Flexible(
+                fit: FlexFit.loose,
                 child: Text(
                   card.description,
                   textAlign: TextAlign.center,

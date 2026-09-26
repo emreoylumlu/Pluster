@@ -177,14 +177,26 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                                     mode: GameMode.roguelike,
                                     title: loc.text('tirmanis_modu'),
                                     subtitle: loc.text('tirmanis_modu_sub'),
-                                    badgeText: widget.currentLanguage == AppLanguage.en ? 'ROGUELIKE 🎲' : 'TIRMANIŞ 🎲',
-                                    badgeColor: const Color(0xFFFF4081),
-                                    accentColor: const Color(0xFFFFD166),
-                                    icon: Icons.style_rounded,
-                                    isComingSoon: false,
+                                    badgeText: widget.currentLanguage == AppLanguage.en ? 'COMING SOON 🔒' : 'YAKINDA 🔒',
+                                    badgeColor: const Color(0xFFFF9100),
+                                    accentColor: const Color(0xFFFF9100),
+                                    icon: Icons.lock_clock_rounded,
+                                    isComingSoon: true,
                                     onTap: () {
                                       HapticFeedback.heavyImpact();
-                                      widget.onSelectMode(GameMode.roguelike);
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            widget.currentLanguage == AppLanguage.en
+                                                ? '🔒 Rogue-like Climb mode is coming soon!'
+                                                : '🔒 Tırmanış Modu çok yakında eklenecek!',
+                                          ),
+                                          backgroundColor: const Color(0xFF162544),
+                                          behavior: SnackBarBehavior.floating,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
                                     },
                                   ),
                                 ],
@@ -215,37 +227,44 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Trophy Badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E1A33).withValues(alpha: 0.85),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.4), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFFD166).withValues(alpha: 0.2),
-                blurRadius: 12,
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 18),
-              const SizedBox(width: 8),
-              Text(
-                '${loc.text("en_yuksek")}: ${widget.highScore}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 1.0,
+        // Trophy Badge (Flexible + FittedBox)
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0E1A33).withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFFFD166).withValues(alpha: 0.4), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFFD166).withValues(alpha: 0.2),
+                  blurRadius: 12,
                 ),
+              ],
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.emoji_events_rounded, color: Color(0xFFFFD166), size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${loc.text("en_yuksek")}: ${widget.highScore}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
+        const SizedBox(width: 8),
 
         // Action Buttons Row: Language Switcher + Help
         Row(
@@ -576,10 +595,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
                     ),
                   ],
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -656,7 +677,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> with TickerProviderStat
               ),
             ),
           ),
-        );
+        ),
+      );
       },
     );
   }

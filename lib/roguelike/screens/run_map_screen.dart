@@ -268,7 +268,7 @@ class _RunMapScreenState extends State<RunMapScreen> {
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.65,
+            childAspectRatio: 0.58,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
           ),

@@ -178,6 +178,7 @@ class LeaderboardService {
       if (isNewHighScore) {
         batch.set(globalRef, {
           'nickname': nickname,
+          'nickname_lowercase': nickname.toLowerCase(),
           'highScore': currentHighScore,
           'achievedAt': FieldValue.serverTimestamp(),
           'avatarId': 'default_avatar',
@@ -188,6 +189,7 @@ class LeaderboardService {
       if (!weeklyDoc.exists || score > existingWeeklyScore) {
         batch.set(weeklyRef, {
           'nickname': nickname,
+          'nickname_lowercase': nickname.toLowerCase(),
           'highScore': score,
           'achievedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
@@ -310,29 +312,131 @@ class LeaderboardService {
     return false;
   }
 
-  /// Update Nickname directly in Firestore with profanity filtering
-  Future<Map<String, dynamic>> setNickname(String nickname) async {
-    final cleanNick = nickname.trim();
+  /// Check if a nickname is available to be taken
+  Future<bool> isNicknameAvailable(String nickname, {String? excludeUid}) async {
+    final cleanNick = nickname.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (cleanNick.length < 3 || cleanNick.length > 20) return false;
+
+    final lower = cleanNick.toLowerCase();
+    if (lower == 'pluster oyuncusu' || lower == 'pluster player' || lower == 'pluster') {
+      return false;
+    }
+
+    final db = _firestore;
+    if (db == null) return true;
+
+    try {
+      final snapExact = await db
+          .collection('leaderboard_endless')
+          .where('nickname', isEqualTo: cleanNick)
+          .limit(2)
+          .get();
+
+      for (final doc in snapExact.docs) {
+        if (excludeUid != null && doc.id == excludeUid) continue;
+        return false;
+      }
+
+      final snapLower = await db
+          .collection('leaderboard_endless')
+          .where('nickname_lowercase', isEqualTo: lower)
+          .limit(2)
+          .get();
+
+      for (final doc in snapLower.docs) {
+        if (excludeUid != null && doc.id == excludeUid) continue;
+        return false;
+      }
+
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
+  /// Update Nickname directly in Firestore with uniqueness and profanity filtering
+  Future<Map<String, dynamic>> setNickname(String nickname, {bool isEn = false}) async {
+    final cleanNick = nickname.trim().replaceAll(RegExp(r'\s+'), ' ');
     if (cleanNick.length < 3 || cleanNick.length > 20) {
-      return {'success': false, 'errorMessage': 'Kullanıcı adı 3 ile 20 karakter arasında olmalıdır.'};
+      return {
+        'success': false,
+        'errorMessage': isEn
+            ? 'Nickname must be between 3 and 20 characters.'
+            : 'Kullanıcı adı 3 ile 20 karakter arasında olmalıdır.'
+      };
+    }
+
+    final lower = cleanNick.toLowerCase();
+    if (lower == 'pluster oyuncusu' || lower == 'pluster player' || lower == 'pluster') {
+      return {
+        'success': false,
+        'errorMessage': isEn
+            ? 'This nickname is reserved. Please choose another.'
+            : 'Bu kullanıcı adı sistem tarafından ayrılmıştır. Lütfen başka bir isim seçin.'
+      };
     }
 
     if (containsProfanity(cleanNick)) {
-      return {'success': false, 'errorMessage': 'Girdiğiniz kullanıcı adı uygunsuz sözcükler içermektedir.'};
+      return {
+        'success': false,
+        'errorMessage': isEn
+            ? 'The entered nickname contains inappropriate language.'
+            : 'Girdiğiniz kullanıcı adı uygunsuz sözcükler içermektedir.'
+      };
     }
 
     final user = await ensureAnonymousAuth();
     final db = _firestore;
     if (user == null || db == null) {
-      return {'success': false, 'errorMessage': 'Oturum açılamadı.'};
+      return {
+        'success': false,
+        'errorMessage': isEn ? 'Could not sign in.' : 'Oturum açılamadı.'
+      };
     }
 
     try {
+      // 1) Check if nickname already exists (exact match)
+      final snapExact = await db
+          .collection('leaderboard_endless')
+          .where('nickname', isEqualTo: cleanNick)
+          .limit(2)
+          .get();
+
+      for (final doc in snapExact.docs) {
+        if (doc.id != user.uid) {
+          return {
+            'success': false,
+            'errorMessage': isEn
+                ? 'This nickname is already taken. Please choose another.'
+                : 'Bu kullanıcı adı zaten kullanılıyor. Lütfen başka bir isim seçin.'
+          };
+        }
+      }
+
+      // 2) Check if nickname already exists (case-insensitive match)
+      final snapLower = await db
+          .collection('leaderboard_endless')
+          .where('nickname_lowercase', isEqualTo: lower)
+          .limit(2)
+          .get();
+
+      for (final doc in snapLower.docs) {
+        if (doc.id != user.uid) {
+          return {
+            'success': false,
+            'errorMessage': isEn
+                ? 'This nickname is already taken. Please choose another.'
+                : 'Bu kullanıcı adı zaten kullanılıyor. Lütfen başka bir isim seçin.'
+          };
+        }
+      }
+
       final now = FieldValue.serverTimestamp();
       final docRef = db.collection('leaderboard_endless').doc(user.uid);
       final docSnap = await docRef.get();
       final Map<String, dynamic> updateData = {
         'nickname': cleanNick,
+        'nickname_lowercase': lower,
         'lastUpdated': now,
       };
       if (!docSnap.exists || docSnap.data()?['highScore'] == null) {
@@ -348,12 +452,18 @@ class LeaderboardService {
       final weeklyRef = db.collection('leaderboard_endless_weekly').doc(weekId).collection('scores').doc(user.uid);
       final weeklyDoc = await weeklyRef.get();
       if (weeklyDoc.exists) {
-        await weeklyRef.set({'nickname': cleanNick}, SetOptions(merge: true));
+        await weeklyRef.set({
+          'nickname': cleanNick,
+          'nickname_lowercase': lower,
+        }, SetOptions(merge: true));
       }
 
       return {'success': true, 'nickname': cleanNick};
     } catch (e) {
-      return {'success': false, 'errorMessage': 'Kullanıcı adı güncellenemedi.'};
+      return {
+        'success': false,
+        'errorMessage': isEn ? 'Failed to update nickname.' : 'Kullanıcı adı güncellenemedi.'
+      };
     }
   }
 

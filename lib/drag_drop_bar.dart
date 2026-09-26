@@ -115,6 +115,9 @@ class DragDropBar extends StatelessWidget {
   final double tileSize;
   final bool isDisabled;
   final ValueChanged<TileData> onDragCompleted;
+  final ValueChanged<TileData>? onDragStarted;
+  final VoidCallback? onDragEnd;
+  final bool isEn;
 
   const DragDropBar({
     super.key,
@@ -122,6 +125,9 @@ class DragDropBar extends StatelessWidget {
     required this.tileSize,
     required this.isDisabled,
     required this.onDragCompleted,
+    this.onDragStarted,
+    this.onDragEnd,
+    this.isEn = false,
   });
 
   Color _discColor(TileData tile) {
@@ -218,9 +224,9 @@ class DragDropBar extends StatelessWidget {
                       children: [
                         const Icon(Icons.touch_app_rounded, color: Color(0xFF7FFFD4), size: 12),
                         const SizedBox(width: 5),
-                        const Text(
-                          'SÜRÜKLE & BIRAK DRAFTI',
-                          style: TextStyle(
+                        Text(
+                          isEn ? 'DRAG & DROP TILES' : 'SÜRÜKLE & BIRAK DRAFTI',
+                          style: const TextStyle(
                             color: Color(0xFF7FFFD4),
                             fontSize: 10,
                             letterSpacing: 1.5,
@@ -261,6 +267,8 @@ class DragDropBar extends StatelessWidget {
                           isDisabled: isDisabled,
                           color: color,
                           onDragCompleted: onDragCompleted,
+                          onDragStarted: onDragStarted,
+                          onDragEnd: onDragEnd,
                         );
                       }
                       return Padding(
@@ -285,6 +293,8 @@ class _AnimatedDiscSlot extends StatefulWidget {
   final bool isDisabled;
   final Color color;
   final ValueChanged<TileData> onDragCompleted;
+  final ValueChanged<TileData>? onDragStarted;
+  final VoidCallback? onDragEnd;
 
   const _AnimatedDiscSlot({
     super.key,
@@ -293,6 +303,8 @@ class _AnimatedDiscSlot extends StatefulWidget {
     required this.isDisabled,
     required this.color,
     required this.onDragCompleted,
+    this.onDragStarted,
+    this.onDragEnd,
   });
 
   @override
@@ -401,7 +413,13 @@ class _AnimatedDiscSlotState extends State<_AnimatedDiscSlot> with SingleTickerP
             size: widget.discSize,
           ),
         ),
-        onDragCompleted: () => widget.onDragCompleted(widget.tile),
+        onDragStarted: () => widget.onDragStarted?.call(widget.tile),
+        onDragEnd: (_) => widget.onDragEnd?.call(),
+        onDraggableCanceled: (_, details) => widget.onDragEnd?.call(),
+        onDragCompleted: () {
+          widget.onDragEnd?.call();
+          widget.onDragCompleted(widget.tile);
+        },
         child: NumberDisc(
           number: widget.tile.value,
           color: widget.color,

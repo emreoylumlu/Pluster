@@ -18,6 +18,8 @@ class EnergySection extends StatelessWidget {
   final int energyFloatingTextKey;
   final int energyPulseDirection;
   final int energyPulseTrigger;
+  final double? previewEnergyCost;
+  final double? previewEnergyGain;
 
   const EnergySection({
     super.key,
@@ -36,6 +38,8 @@ class EnergySection extends StatelessWidget {
     this.energyFloatingTextKey = 0,
     this.energyPulseDirection = 0,
     this.energyPulseTrigger = 0,
+    this.previewEnergyCost,
+    this.previewEnergyGain,
   });
 
   @override
@@ -93,17 +97,72 @@ class EnergySection extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          loc.text('pulse_enerjisi'),
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.82),
-                            fontSize: 10,
-                            letterSpacing: 1.8,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              loc.text('pulse_enerjisi'),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.82),
+                                fontSize: 10,
+                                letterSpacing: 1.8,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 4),
                         Row(
                           children: [
+                            if (previewEnergyCost != null && previewEnergyCost! > 0)
+                              Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent.withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.redAccent, width: 1.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.redAccent.withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '-${previewEnergyCost!.toInt()}⚡',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            if (previewEnergyGain != null && previewEnergyGain! > 0)
+                              Container(
+                                margin: const EdgeInsets.only(right: 6),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF00E676).withValues(alpha: 0.35),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: const Color(0xFF00E676), width: 1.2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF00E676).withValues(alpha: 0.4),
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '+${previewEnergyGain!.toInt()}⚡',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
                             if (combo > 1)
                               Container(
                                 margin: const EdgeInsets.only(right: 8),
@@ -200,8 +259,53 @@ class EnergySection extends StatelessWidget {
                                       spreadRadius: 0.5,
                                     ),
                                   ],
+                                ),                               ),
+                              if (previewEnergyGain != null && previewEnergyGain! > 0)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: (pct + (previewEnergyGain! / 100.0)).clamp(0.0, 1.0),
+                                    child: Container(
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF00E676), Color(0xFF7FFFD4)],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF00E676).withValues(alpha: 0.6),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                              if (previewEnergyCost != null && previewEnergyCost! > 0)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: pct,
+                                    child: Container(
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFFFF5252), Color(0xFFFF9100)],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.redAccent.withValues(alpha: 0.6),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: TweenAnimationBuilder<double>(
@@ -216,7 +320,9 @@ class EnergySection extends StatelessWidget {
                                     );
                                   },
                                   child: FractionallySizedBox(
-                                    widthFactor: pct,
+                                    widthFactor: (previewEnergyCost != null && previewEnergyCost! > 0)
+                                        ? (pct - (previewEnergyCost! / 100.0)).clamp(0.0, 1.0)
+                                        : pct,
                                     child: Container(
                                       height: 14,
                                       decoration: BoxDecoration(
@@ -318,15 +424,17 @@ class EnergySection extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 13),
               const SizedBox(width: 4),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.65),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.65),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                    ),
                   ),
                 ),
               ),
