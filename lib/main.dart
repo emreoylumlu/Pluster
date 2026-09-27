@@ -18,6 +18,7 @@ import 'roguelike_draft_modal.dart';
 import 'roguelike_floor_transition_dialog.dart';
 import 'services/leaderboard_service.dart';
 import 'services/ad_service.dart';
+import 'services/sound_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 
@@ -79,6 +80,7 @@ class _PulseGridAppState extends State<PulseGridApp> {
   void initState() {
     super.initState();
     _loadSavedData();
+    SoundService.instance.initialize();
   }
 
   Future<void> _loadSavedData() async {
@@ -1010,6 +1012,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
   double? activeTileDragCost;
   double? activeBombEnergyGain;
   _Point? hoveredBombCell;
+  _GhostPreview? activeGhostPreview;
 
   String? activeComboTitle;
   bool isScorePulsing = false;
@@ -1571,8 +1574,19 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
   void _assignRandomSpecialCells() {
     final level = widget.level;
-    Random rng = Random();
-    List<int> indices = List.generate(16, (i) => i)..shuffle();
+    final rng = Random();
+    final List<int> indices;
+    if (level != null) {
+      if (level.chapter <= 2) {
+        // Erken kademe seviyelerde kenarlara yakın (merkez açık kalır)
+        indices = [0, 15, 3, 12, 1, 14, 2, 13, 4, 11, 7, 8, 5, 10, 6, 9];
+      } else {
+        // İleri kademe seviyelerde merkeze yakın ve dağınık (manevra alanı kısıtlı)
+        indices = [5, 10, 6, 9, 0, 15, 3, 12, 2, 13, 1, 14, 4, 11, 7, 8];
+      }
+    } else {
+      indices = List.generate(16, (i) => i)..shuffle();
+    }
 
     List<CellSpecialType> specials;
 
@@ -2348,12 +2362,6 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     final movesLeft = moveLimit != null ? (moveLimit - levelMoveCount).clamp(0, moveLimit) : null;
     final loc = AppLocalizations(widget.currentLanguage);
 
-    final primaryObjective = level.displayObjectives.firstWhere(
-      (o) => o.type == ObjectiveType.scoreTarget,
-      orElse: () => level.displayObjectives.first,
-    );
-    final primaryMet = _isObjectiveMet(primaryObjective);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: GestureDetector(
@@ -2415,41 +2423,51 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
               const SizedBox(width: 6),
               const Spacer(),
 
-              // Right: Primary Objective Summary Pill (Flexible + FittedBox)
+              // Right: Objectives Summary Pills (Flexible + FittedBox)
               Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: primaryMet
-                        ? const Color(0xFF00E676).withValues(alpha: 0.2)
-                        : const Color(0xFF0C192E).withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: primaryMet ? const Color(0xFF00E676) : const Color(0xFF4FC3F7).withValues(alpha: 0.4),
-                      width: 1.2,
-                    ),
-                  ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          primaryMet ? Icons.check_circle_rounded : Icons.track_changes_rounded,
-                          size: 14,
-                          color: primaryMet ? const Color(0xFF00E676) : const Color(0xFF4FC3F7),
-                        ),
-                        const SizedBox(width: 5),
-                        Text(
-                          _getObjectiveProgressText(primaryObjective),
-                          style: TextStyle(
-                            color: primaryMet ? const Color(0xFF7FFFD4) : Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w900,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: level.displayObjectives.map((obj) {
+                      final met = _isObjectiveMet(obj);
+                      final icon = _getObjectiveIconData(obj.type);
+                      final text = _getObjectiveProgressText(obj);
+                      return Container(
+                        margin: const EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: met
+                              ? const Color(0xFF00E676).withValues(alpha: 0.2)
+                              : const Color(0xFF0C192E).withValues(alpha: 0.8),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: met ? const Color(0xFF00E676) : const Color(0xFF4FC3F7).withValues(alpha: 0.4),
+                            width: 1.2,
                           ),
                         ),
-                      ],
-                    ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              met ? Icons.check_circle_rounded : icon,
+                              size: 13,
+                              color: met ? const Color(0xFF00E676) : const Color(0xFF4FC3F7),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              text,
+                              style: TextStyle(
+                                color: met ? const Color(0xFF7FFFD4) : Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ),
@@ -3916,13 +3934,17 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                         onMove: (details) {
                           if (details.data.type == TileType.bomb) {
                             _updateBombHover(r, c);
+                          } else {
+                            _updateGhostPreview(r, c, details.data);
                           }
                         },
                         onLeave: (data) {
                           _clearBombHover();
+                          _clearGhostPreview();
                         },
                         onAcceptWithDetails: (details) {
                           _clearBombHover();
+                          _clearGhostPreview();
                           _handleTilePlacement(r, c, details.data);
                         },
                         builder: (context, candidateData, rejectedData) {
@@ -3931,6 +3953,10 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                               ((hoveredBombCell!.r == r && (hoveredBombCell!.c - c).abs() <= 1) ||
                                (hoveredBombCell!.c == c && (hoveredBombCell!.r - r).abs() <= 1));
                           final bool showMystery = isMysteryMode && cell.value > 0;
+                          final bool isGhostTarget = activeGhostPreview != null && activeGhostPreview!.r == r && activeGhostPreview!.c == c;
+                          final bool isCascadeTarget = activeGhostPreview != null && activeGhostPreview!.cascadeNeighbors.contains(_Point(r, c));
+                          final bool isWaveTarget = !isCascadeTarget && activeGhostPreview != null && activeGhostPreview!.waveNeighbors.contains(_Point(r, c));
+
                           return Stack(
                             children: [
                               AnimatedGameTile(
@@ -3960,27 +3986,153 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                                     ],
                                   ),
                                 ),
-                              if (isHovered)
-                                Container(
-                                  width: tileSize,
-                                  height: tileSize,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: (candidateData.isNotEmpty && candidateData.first?.type == TileType.bomb)
-                                          ? const Color(0xFFFF5252)
-                                          : const Color(0xFF00E676),
-                                      width: 2.5,
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: (candidateData.isNotEmpty && candidateData.first?.type == TileType.bomb)
-                                            ? const Color(0xFFFF5252).withValues(alpha: 0.6)
-                                            : const Color(0xFF00E676).withValues(alpha: 0.5),
-                                        blurRadius: 16,
-                                        spreadRadius: 2,
+                              if (isCascadeTarget && !isHovered)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFFFFD166), width: 2.0),
+                                        color: const Color(0xFFFFD166).withValues(alpha: 0.22),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFFFFD166).withValues(alpha: 0.45),
+                                            blurRadius: 10,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
                                       ),
-                                    ],
+                                      child: Align(
+                                        alignment: Alignment.topRight,
+                                        child: Container(
+                                          margin: const EdgeInsets.all(4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFFD166),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                '+1',
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                              SizedBox(width: 2),
+                                              Text('💥', style: TextStyle(fontSize: 8)),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (isWaveTarget && !isHovered)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: const Color(0xFF00E5FF), width: 1.8),
+                                        color: const Color(0xFF00E5FF).withValues(alpha: 0.15),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                                            blurRadius: 8,
+                                            spreadRadius: 1,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Align(
+                                        alignment: Alignment.topRight,
+                                        child: Container(
+                                          margin: const EdgeInsets.all(4),
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF00E5FF),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: const Text(
+                                            '+1',
+                                            style: TextStyle(
+                                              color: Colors.black,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              if (isHovered || isGhostTarget)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(
+                                          color: (candidateData.isNotEmpty && candidateData.first?.type == TileType.bomb)
+                                              ? const Color(0xFFFF5252)
+                                              : ((activeGhostPreview?.willExplode ?? false)
+                                                  ? const Color(0xFFFFD166)
+                                                  : const Color(0xFF00E676)),
+                                          width: 2.5,
+                                        ),
+                                        color: (candidateData.isNotEmpty && candidateData.first?.type == TileType.bomb)
+                                            ? const Color(0xFFFF5252).withValues(alpha: 0.2)
+                                            : ((activeGhostPreview?.willExplode ?? false)
+                                                ? const Color(0xFFFFD166).withValues(alpha: 0.25)
+                                                : const Color(0xFF00E676).withValues(alpha: 0.2)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: (candidateData.isNotEmpty && candidateData.first?.type == TileType.bomb)
+                                                ? const Color(0xFFFF5252).withValues(alpha: 0.6)
+                                                : ((activeGhostPreview?.willExplode ?? false)
+                                                    ? const Color(0xFFFFD166).withValues(alpha: 0.7)
+                                                    : const Color(0xFF00E676).withValues(alpha: 0.5)),
+                                            blurRadius: 16,
+                                            spreadRadius: 2,
+                                          ),
+                                        ],
+                                      ),
+                                      child: (activeGhostPreview != null && isGhostTarget)
+                                          ? Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.black.withValues(alpha: 0.8),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: activeGhostPreview!.willExplode ? const Color(0xFFFFD166) : const Color(0xFF00E676),
+                                                    width: 1.5,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      '${activeGhostPreview!.previewValue}',
+                                                      style: TextStyle(
+                                                        color: activeGhostPreview!.willExplode ? const Color(0xFFFFD166) : const Color(0xFF00E676),
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                    if (activeGhostPreview!.willExplode) ...[
+                                                      const SizedBox(width: 3),
+                                                      const Text('💥', style: TextStyle(fontSize: 12)),
+                                                    ],
+                                                  ],
+                                                ),
+                                              ),
+                                            )
+                                          : null,
+                                    ),
                                   ),
                                 ),
                             ],
@@ -4195,6 +4347,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
 
     if (tile.type == TileType.bomb) {
+      SoundService.instance.playBomb();
       HapticFeedback.heavyImpact();
       _triggerScreenShake();
       int clearedCount = _clearCellAndNeighbors(r, c);
@@ -4214,6 +4367,8 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       if (level != null) _checkLevelObjectives();
       return;
     }
+
+    SoundService.instance.playPlacement();
 
     if (tile.type == TileType.multiplier) {
       HapticFeedback.mediumImpact();
@@ -4554,6 +4709,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
       }
 
       HapticFeedback.vibrate();
+      SoundService.instance.playGameOver();
       if (level != null) {
         setState(() => isLevelFailed = true);
       } else {
@@ -4842,7 +4998,14 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
       if (grid[r][c].value == 0 && grid[r][c].specialType != CellSpecialType.locked) continue;
 
-      HapticFeedback.heavyImpact();
+      if (comboCount == 1) {
+        HapticFeedback.mediumImpact();
+      } else if (comboCount == 2) {
+        HapticFeedback.heavyImpact();
+      } else {
+        HapticFeedback.vibrate();
+      }
+      SoundService.instance.playCombo(comboCount);
 
       CellSpecialType currentSpecial = grid[r][c].specialType;
       bool wasMultiplier = grid[r][c].isMultiplier;
@@ -5150,6 +5313,92 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
     }
   }
 
+  void _updateGhostPreview(int r, int c, TileData tile) {
+    if (isProcessingPulse || isGameOver || isLevelComplete || isLevelFailed) return;
+    final cell = grid[r][c];
+    if (cell.specialType == CellSpecialType.locked) return;
+    if (cell.specialType == CellSpecialType.frozen || (frozenRowIndex != null && frozenTurnsLeft > 0 && r == frozenRowIndex)) return;
+
+    int nextVal;
+    bool willExplode = false;
+    bool isMultiplier = false;
+
+    if (tile.type == TileType.multiplier) {
+      isMultiplier = true;
+      final int oldVal = cell.value;
+      nextVal = (oldVal > 0 ? oldVal * 2 : 2).clamp(1, 8);
+      willExplode = nextVal >= 8;
+    } else if (tile.type == TileType.wildcard) {
+      final int targetVal = cell.value > 0 ? cell.value : 4;
+      nextVal = (targetVal + 4).clamp(1, 8);
+      willExplode = nextVal >= 8;
+    } else if (tile.type == TileType.prism) {
+      nextVal = cell.value;
+      willExplode = false;
+    } else if (tile.type == TileType.normal) {
+      nextVal = cell.value + tile.value;
+      if (nextVal > 8) return;
+      willExplode = nextVal >= 8;
+    } else {
+      return;
+    }
+
+    final waveNeighbors = <_Point>[];
+    final cascadeNeighbors = <_Point>[];
+
+    if (willExplode || tile.type == TileType.prism) {
+      final candidates = [
+        _Point(r - 1, c),
+        _Point(r + 1, c),
+        _Point(r, c - 1),
+        _Point(r, c + 1),
+      ];
+      for (final p in candidates) {
+        if (p.r >= 0 && p.r < 4 && p.c >= 0 && p.c < 4) {
+          final nCell = grid[p.r][p.c];
+          if (nCell.value > 0 &&
+              nCell.specialType != CellSpecialType.locked &&
+              nCell.specialType != CellSpecialType.bossCore) {
+            waveNeighbors.add(p);
+            if (nCell.value + 1 >= 8) {
+              cascadeNeighbors.add(p);
+            }
+          }
+        }
+      }
+    }
+
+    // Avoid redundant rebuilds if unchanged
+    if (activeGhostPreview?.r == r &&
+        activeGhostPreview?.c == c &&
+        activeGhostPreview?.previewValue == nextVal &&
+        activeGhostPreview?.willExplode == willExplode &&
+        activeGhostPreview?.waveNeighbors.length == waveNeighbors.length &&
+        activeGhostPreview?.cascadeNeighbors.length == cascadeNeighbors.length) {
+      return;
+    }
+
+    setState(() {
+      activeGhostPreview = _GhostPreview(
+        r: r,
+        c: c,
+        previewValue: nextVal,
+        willExplode: willExplode,
+        isMultiplier: isMultiplier,
+        waveNeighbors: waveNeighbors,
+        cascadeNeighbors: cascadeNeighbors,
+      );
+    });
+  }
+
+  void _clearGhostPreview() {
+    if (activeGhostPreview != null) {
+      setState(() {
+        activeGhostPreview = null;
+      });
+    }
+  }
+
   void _spawnEndlessSpecialCellIfNeeded() {
     if (widget.mode != GameMode.endless || isGameOver) return;
 
@@ -5281,6 +5530,7 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
 
     if (energy <= 0 && !isLevelComplete) {
       HapticFeedback.vibrate();
+      SoundService.instance.playGameOver();
       if (widget.level != null) {
         setState(() => isLevelFailed = true);
       } else {
@@ -5328,6 +5578,30 @@ class _PulseGridScreenState extends State<PulseGridScreen> with TickerProviderSt
                     onTap: () {
                       Navigator.pop(context);
                       _initGame();
+                    },
+                  ),
+                  StatefulBuilder(
+                    builder: (context, setMenuState) {
+                      final bool isAudioOn = SoundService.instance.isSoundEnabled;
+                      return ListTile(
+                        leading: Icon(
+                          isAudioOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                          color: isAudioOn ? const Color(0xFF00E5FF) : Colors.grey,
+                        ),
+                        title: Text(
+                          isEn ? 'Sound Effects' : 'Ses Efektleri',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Switch(
+                          value: isAudioOn,
+                          activeThumbColor: const Color(0xFF00E5FF),
+                          onChanged: (val) {
+                            setMenuState(() {
+                              SoundService.instance.toggleSound();
+                            });
+                          },
+                        ),
+                      );
                     },
                   ),
                   ListTile(
@@ -5648,10 +5922,38 @@ class PulseGridCell extends StatelessWidget {
   }
 }
 
+class _GhostPreview {
+  final int r;
+  final int c;
+  final int previewValue;
+  final bool willExplode;
+  final bool isMultiplier;
+  final List<_Point> waveNeighbors;
+  final List<_Point> cascadeNeighbors;
+
+  const _GhostPreview({
+    required this.r,
+    required this.c,
+    required this.previewValue,
+    required this.willExplode,
+    this.isMultiplier = false,
+    this.waveNeighbors = const [],
+    this.cascadeNeighbors = const [],
+  });
+}
+
 class _Point {
   final int r;
   final int c;
   _Point(this.r, this.c);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _Point && runtimeType == other.runtimeType && r == other.r && c == other.c;
+
+  @override
+  int get hashCode => r.hashCode ^ c.hashCode;
 }
 
 class _BoardVfxOverlay extends StatefulWidget {

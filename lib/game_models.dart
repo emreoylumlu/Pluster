@@ -27,20 +27,27 @@ class LevelObjective {
   });
 
   String getLocalizedLabel(bool isEn) {
-    if (!isEn) return label;
+    if (isEn) {
+      switch (type) {
+        case ObjectiveType.scoreTarget:
+          return '$target Points';
+        case ObjectiveType.comboCount:
+          return target == 1 ? '1 Chain Reaction' : '$target Chain Reactions';
+        case ObjectiveType.clearLocked:
+          return target == 1 ? 'Clear 1 Locked Cell' : 'Clear $target Locked Cells';
+        case ObjectiveType.energyRemaining:
+          return 'Energy ≥ $target%';
+        case ObjectiveType.bombTilesCleared:
+          return target == 1 ? 'Bomb 1 Tile' : 'Bomb $target Tiles';
+        case ObjectiveType.multiplierExplosion:
+          return target == 1 ? 'Explode 1 Multiplier' : 'Explode $target Multipliers';
+      }
+    }
     switch (type) {
-      case ObjectiveType.scoreTarget:
-        return '$target Points';
       case ObjectiveType.comboCount:
-        return target == 1 ? '1 Chain Combo' : '$target Chain Combos';
-      case ObjectiveType.clearLocked:
-        return target == 1 ? 'Clear 1 Locked Cell' : 'Clear $target Locked Cells';
-      case ObjectiveType.energyRemaining:
-        return 'Energy ≥ $target%';
-      case ObjectiveType.bombTilesCleared:
-        return target == 1 ? 'Bomb 1 Tile' : 'Bomb $target Tiles';
-      case ObjectiveType.multiplierExplosion:
-        return target == 1 ? 'Explode 1 Multiplier' : 'Explode $target Multipliers';
+        return target == 1 ? '1 Kez Kombo Zinciri' : '$target Kez Kombo Zinciri';
+      default:
+        return label;
     }
   }
 }

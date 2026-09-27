@@ -30,7 +30,7 @@ const List<LevelData> kAllLevels = [
     description: 'Taşları akıllıca diz ve ilk kombonu gerçekleştir.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1200, label: '1.200 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 22),
   ),
@@ -49,7 +49,7 @@ const List<LevelData> kAllLevels = [
     description: 'Tüm temel mekanikleri kombolarla kanıtla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1600, label: '1.600 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
   ),
@@ -116,7 +116,7 @@ const List<LevelData> kAllLevels = [
     name: 'İlk Zincir',
     description: 'Bir patlamanın diğerini tetiklediğini gör.',
     objectives: [
-      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1500, label: '1.500 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 20),
@@ -126,7 +126,7 @@ const List<LevelData> kAllLevels = [
     name: 'Kombo Başlıyor',
     description: 'Zinciri bilinçli olarak kur.',
     objectives: [
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 1800, label: '1.800 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
@@ -136,7 +136,7 @@ const List<LevelData> kAllLevels = [
     name: 'Zincirleme',
     description: 'Art arda üç zincir tetikle.',
     objectives: [
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2000, label: '2.000 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
@@ -147,7 +147,7 @@ const List<LevelData> kAllLevels = [
     description: 'Hem puan hem kombo — ikisini birlikte yönet.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2200, label: '2.200 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
   ),
@@ -159,7 +159,7 @@ const List<LevelData> kAllLevels = [
     description: 'Öğrendiklerini birleştir. EMP yakında geliyor.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2500, label: '2.500 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
     ],
   ),
   LevelData(
@@ -168,7 +168,7 @@ const List<LevelData> kAllLevels = [
     description: 'Çift Enerji hücresi depoya 2 kat enerji verir. Kullan!',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2000, label: '2.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 1, label: '1 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 20),
     guaranteedCells: [CellSpecialType.doubleEnergy],
@@ -179,7 +179,7 @@ const List<LevelData> kAllLevels = [
     description: 'İki Çift Enerji hücresini aynı oyunda tetikle.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 2400, label: '2.400 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
     guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleEnergy],
@@ -201,7 +201,7 @@ const List<LevelData> kAllLevels = [
     description: 'Çift Enerji ve Çift Skor aynı anda. Doğru zamanlama şart.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 3000, label: '3.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
     guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleScore],
@@ -256,7 +256,7 @@ const List<LevelData> kAllLevels = [
     description: 'Tüm mekanikleri birleştir. Boss geliyor.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4500, label: '4.500 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
@@ -270,7 +270,7 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 5000, label: '5.000 Puan'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 3, label: '3 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35, startEnergy: 80),
     guaranteedCells: [
@@ -385,7 +385,7 @@ const List<LevelData> kAllLevels = [
     description: 'Engelleri aşarken kombo kur.',
     objectives: [
       LevelObjective(type: ObjectiveType.clearLocked, target: 3, label: '3 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4500, label: '4.500 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
@@ -420,7 +420,7 @@ const List<LevelData> kAllLevels = [
     description: 'Her şey devrede. Çift Enerji ve 2x Skor birlikte.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4200, label: '4.200 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 2, label: '2 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
     guaranteedCells: [
@@ -433,7 +433,7 @@ const List<LevelData> kAllLevels = [
     name: 'Çapraz Güç',
     description: 'Kombo zinciri kur, skoru yükselt.',
     objectives: [
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4500, label: '4.500 Puan'),
     ],
     constraints: LevelConstraints(moveLimit: 25),
@@ -448,7 +448,7 @@ const List<LevelData> kAllLevels = [
     description: 'Çift Enerji, kombo ve yüksek skor aynı anda.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 4800, label: '4.800 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
     guaranteedCells: [
@@ -477,7 +477,7 @@ const List<LevelData> kAllLevels = [
     description: 'Her şeyi aynı anda yap. Odaklan.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 5500, label: '5.500 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
@@ -505,7 +505,7 @@ const List<LevelData> kAllLevels = [
     description: 'Kombo ve skor aynı anda gerekli.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 5800, label: '5.800 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 3, label: '3 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 25, startEnergy: 65),
     guaranteedCells: [
@@ -519,7 +519,7 @@ const List<LevelData> kAllLevels = [
     description: 'Üç ayrı hedefi eş zamanlı tamamla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 6000, label: '6.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
     ],
     constraints: LevelConstraints(moveLimit: 30, startEnergy: 60),
@@ -549,7 +549,7 @@ const List<LevelData> kAllLevels = [
     description: 'Kombo ve Çarpan ile skoru büyüt.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 6000, label: '6.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
     guaranteedCells: [
@@ -563,7 +563,7 @@ const List<LevelData> kAllLevels = [
     description: 'Engelleri aş, hedefe yaklaş.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 7500, label: '7.500 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 38, startEnergy: 60),
@@ -581,7 +581,7 @@ const List<LevelData> kAllLevels = [
     description: 'Ustalık seviyesi. Her hamleni planla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 9000, label: '9.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 3, label: '3 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 40, startEnergy: 65),
@@ -600,7 +600,7 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 10500, label: '10.500 Puan'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 42, startEnergy: 60),
     guaranteedCells: [
@@ -615,7 +615,7 @@ const List<LevelData> kAllLevels = [
     description: 'Tüm bilgini birleştir. Zirveye son bir adım.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 12000, label: '12.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 45, startEnergy: 65),
@@ -637,7 +637,7 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 14000, label: '14.000 Puan'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 5, label: '5 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 30, label: 'Enerji ≥ %30'),
     ],
     constraints: LevelConstraints(moveLimit: 55, startEnergy: 75),
@@ -663,7 +663,7 @@ const List<LevelData> kAllLevels = [
     description: 'Bölüm 3 başlıyor. Daha yüksek puanlar ve kombolar!',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 15000, label: '15.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 40),
     guaranteedCells: [CellSpecialType.doubleEnergy, CellSpecialType.doubleScore],
@@ -674,7 +674,7 @@ const List<LevelData> kAllLevels = [
     description: 'Vorteks hücreleriyle komşu taşları yükselt.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 16000, label: '16.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
     guaranteedCells: [CellSpecialType.vortex, CellSpecialType.doubleScore],
@@ -718,7 +718,7 @@ const List<LevelData> kAllLevels = [
     description: 'Ritim yakala, 5 zincirli komboyu tamamla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 20000, label: '20.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -750,10 +750,16 @@ const List<LevelData> kAllLevels = [
     description: 'Hem engelleri kır hem de komboları diz.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 23000, label: '23.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 4, label: '4 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 60, chapter: 3,
@@ -771,7 +777,7 @@ const List<LevelData> kAllLevels = [
     description: 'Dar hamle sınırında yüksek skor.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 25000, label: '25.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 30),
   ),
@@ -814,7 +820,7 @@ const List<LevelData> kAllLevels = [
     description: '6 zincirli efsanevi komboyu başar.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 29000, label: '29.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
   ),
@@ -828,6 +834,13 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 67, chapter: 3,
@@ -835,7 +848,7 @@ const List<LevelData> kAllLevels = [
     description: 'Hızlı reaksiyonlar ve kombolar.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 31000, label: '31.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -856,10 +869,17 @@ const List<LevelData> kAllLevels = [
     description: 'Çoklu görev sınavı.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 33000, label: '33.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 5, label: '5 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 70, chapter: 3,
@@ -880,6 +900,14 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 72, chapter: 3,
@@ -887,7 +915,7 @@ const List<LevelData> kAllLevels = [
     description: 'Kombo ustalığını kanıtla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 36000, label: '36.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -902,6 +930,14 @@ const List<LevelData> kAllLevels = [
     ],
     constraints: LevelConstraints(moveLimit: 40),
     forceMultiplierAvailable: true,
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 74, chapter: 3,
@@ -909,7 +945,7 @@ const List<LevelData> kAllLevels = [
     description: 'Boss kapısına son bir adım.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 38000, label: '38.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
     ],
     constraints: LevelConstraints(moveLimit: 40),
@@ -923,7 +959,7 @@ const List<LevelData> kAllLevels = [
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 40000, label: '40.000 Puan'),
       LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
     ],
     constraints: LevelConstraints(moveLimit: 55, startEnergy: 70),
@@ -950,7 +986,7 @@ const List<LevelData> kAllLevels = [
     description: 'Son bölüm başlıyor! Efsanelerin arenası.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 41000, label: '41.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 6, label: '6 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 40),
   ),
@@ -982,7 +1018,7 @@ const List<LevelData> kAllLevels = [
     description: '7 zincirli kombo zincirini başar.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 44000, label: '44.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
   ),
@@ -1003,7 +1039,7 @@ const List<LevelData> kAllLevels = [
     description: 'Büyük skorlar, büyük kombolar.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 46000, label: '46.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
   ),
@@ -1016,6 +1052,15 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 83, chapter: 4,
@@ -1023,7 +1068,7 @@ const List<LevelData> kAllLevels = [
     description: 'Çarpan ve komboları harmanla.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 48000, label: '48.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Kez Kombo Zinciri'),
       LevelObjective(type: ObjectiveType.multiplierExplosion, target: 6, label: '6 Çarpan Patlatma'),
     ],
     constraints: LevelConstraints(moveLimit: 40),
@@ -1039,6 +1084,15 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.energyRemaining, target: 45, label: 'Enerji ≥ %45'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 85, chapter: 4,
@@ -1046,7 +1100,7 @@ const List<LevelData> kAllLevels = [
     description: 'Ustalık seviyesi kombolar.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 50000, label: '50.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 7, label: '7 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -1059,6 +1113,15 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.clearLocked, target: 7, label: '7 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 87, chapter: 4,
@@ -1066,7 +1129,7 @@ const List<LevelData> kAllLevels = [
     description: '8 zincirli devasa kombo!',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 54000, label: '54.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
   ),
@@ -1091,14 +1154,24 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 90, chapter: 4,
     name: 'Kuantum Duvarı',
-    description: '8 zincirli kombo rekoru.',
+    description: 'Usta seviyesi zincirleme reaksiyon.',
     objectives: [
-      LevelObjective(type: ObjectiveType.scoreTarget, target: 60000, label: '60.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 5000, label: '5.000 Puan'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 4, label: '4 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -1111,6 +1184,16 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 92, chapter: 4,
@@ -1118,7 +1201,7 @@ const List<LevelData> kAllLevels = [
     description: 'Kusursuz kombo ritmi.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 64000, label: '64.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -1138,11 +1221,19 @@ const List<LevelData> kAllLevels = [
     name: 'Karanlık Madde',
     description: 'Çoklu görev ustası.',
     objectives: [
-      LevelObjective(type: ObjectiveType.scoreTarget, target: 68000, label: '68.000 Puan'),
-      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 5000, label: '5.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 95, chapter: 4,
@@ -1150,7 +1241,7 @@ const List<LevelData> kAllLevels = [
     description: 'Son 5 seviye! Hata yapma şansın yok.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 70000, label: '70.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -1163,6 +1254,16 @@ const List<LevelData> kAllLevels = [
       LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
   LevelData(
     id: 97, chapter: 4,
@@ -1170,7 +1271,7 @@ const List<LevelData> kAllLevels = [
     description: 'Efsanevi skor hedefi.',
     objectives: [
       LevelObjective(type: ObjectiveType.scoreTarget, target: 74000, label: '74.000 Puan'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 35),
   ),
@@ -1191,11 +1292,19 @@ const List<LevelData> kAllLevels = [
     name: 'Apex Kapısı',
     description: 'Nihai final boss sınavından önceki son kapı.',
     objectives: [
-      LevelObjective(type: ObjectiveType.scoreTarget, target: 78000, label: '78.000 Puan'),
-      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 6000, label: '6.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 5, label: '5 Kez Kombo Zinciri'),
     ],
     constraints: LevelConstraints(moveLimit: 38),
+    guaranteedCells: [
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+      CellSpecialType.locked,
+    ],
   ),
 
   // --- NİHAİ FİNAL BOSS (100) ---
@@ -1204,15 +1313,13 @@ const List<LevelData> kAllLevels = [
     name: '👑 NİHAİ BOSS: Kuantum Apex',
     description: 'Tüm evrenin kaderi bu savaşta! Kuantum Apex Çekirdeğini yok et!',
     objectives: [
-      LevelObjective(type: ObjectiveType.scoreTarget, target: 85000, label: '85.000 Puan'),
-      LevelObjective(type: ObjectiveType.clearLocked, target: 8, label: '8 Engel Kır'),
-      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Zincir Kombo'),
-      LevelObjective(type: ObjectiveType.energyRemaining, target: 50, label: 'Enerji ≥ %50'),
+      LevelObjective(type: ObjectiveType.scoreTarget, target: 10000, label: '10.000 Puan'),
+      LevelObjective(type: ObjectiveType.clearLocked, target: 6, label: '6 Engel Kır'),
+      LevelObjective(type: ObjectiveType.comboCount, target: 8, label: '8 Kez Kombo Zinciri'),
+      LevelObjective(type: ObjectiveType.energyRemaining, target: 40, label: 'Enerji ≥ %40'),
     ],
     constraints: LevelConstraints(moveLimit: 60, startEnergy: 80),
     guaranteedCells: [
-      CellSpecialType.locked,
-      CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
       CellSpecialType.locked,
